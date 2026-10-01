@@ -14,6 +14,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { GovernmentLogo } from "@/components/branding/GovernmentLogo";
+import { Pagination } from "@/components/ui/pagination";
 
 interface DepartmentAgg {
   id: string;
@@ -26,6 +27,8 @@ interface DepartmentAgg {
 export default function PublicPerformanceDashboard() {
   const [departments, setDepartments] = useState<DepartmentAgg[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     async function fetchPublicData() {
@@ -139,31 +142,42 @@ export default function PublicPerformanceDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {departments.map((dept) => (
-                  <TableRow key={dept.id}>
-                    <TableCell className="font-semibold text-slate-900">{dept.name}</TableCell>
-                    <TableCell className="text-right font-mono text-slate-600">{dept.totalApplications.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
-                          <div
-                            className={`h-full ${dept.slaCompliance >= 90 ? 'bg-green-500' : dept.slaCompliance >= 80 ? 'bg-blue-500' : 'bg-red-500'}`}
-                            style={{ width: `${dept.slaCompliance}%` }}
-                          />
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(departments.length / pageSize));
+                  const paginatedDepts = departments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                  return paginatedDepts.map((dept) => (
+                    <TableRow key={dept.id}>
+                      <TableCell className="font-semibold text-slate-900">{dept.name}</TableCell>
+                      <TableCell className="text-right font-mono text-slate-600">{dept.totalApplications.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
+                            <div
+                              className={`h-full ${dept.slaCompliance >= 90 ? 'bg-green-500' : dept.slaCompliance >= 80 ? 'bg-blue-500' : 'bg-red-500'}`}
+                              style={{ width: `${dept.slaCompliance}%` }}
+                            />
+                          </div>
+                          <span className={`font-mono font-bold ${
+                            dept.slaCompliance >= 90 ? "text-green-700" :
+                            dept.slaCompliance >= 80 ? "text-blue-700" : "text-red-600"
+                          }`}>
+                            {dept.slaCompliance.toFixed(1)}%
+                          </span>
                         </div>
-                        <span className={`font-mono font-bold ${
-                          dept.slaCompliance >= 90 ? "text-green-700" :
-                          dept.slaCompliance >= 80 ? "text-blue-700" : "text-red-600"
-                        }`}>
-                          {dept.slaCompliance.toFixed(1)}%
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  ));
+                })()}
               </TableBody>
             </Table>
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.max(1, Math.ceil(departments.length / pageSize))}
+            totalItems={departments.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+          />
         </div>
 
         <div className="text-center pb-12">

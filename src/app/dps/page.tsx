@@ -26,6 +26,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Pagination } from "@/components/ui/pagination";
 
 function DPSContent() {
   const searchParams = useSearchParams();
@@ -38,6 +39,8 @@ function DPSContent() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>(filterParam === "chronic" ? "Review Required" : "all");
   const [sortBy, setSortBy] = useState<string>("score"); // score, compliance, volume, breaches
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 10;
 
   // Review Dialog State
   const [reviewDialogOpen, setReviewDialogOpen] = useState<boolean>(false);
@@ -119,6 +122,16 @@ function DPSContent() {
       return 0;
     });
   }, [dpsList, selectedDept, selectedDistrict, selectedStatus, searchQuery, sortBy]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDept, selectedDistrict, selectedStatus, searchQuery, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const paginatedDps = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredList.slice(start, start + pageSize);
+  }, [filteredList, currentPage, pageSize]);
 
   // Chronic officers with recurring delay patterns
   const chronicOfficers = useMemo(() => {
@@ -317,7 +330,7 @@ function DPSContent() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredList.map((dps) => (
+                paginatedDps.map((dps) => (
                   <TableRow key={dps.dpsId} className="hover:bg-slate-50 transition-colors">
                     {/* DPS Officer */}
                     <TableCell>
@@ -424,6 +437,13 @@ function DPSContent() {
             </TableBody>
           </Table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredList.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* CREATE REVIEW DIALOG */}

@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { TopUtilityBar } from "@/components/layout/TopUtilityBar";
-import { MainHeader } from "@/components/layout/MainHeader";
-import { Footer } from "@/components/layout/Footer";
+import { AppShell } from "@/components/layout/AppShell";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "RTPS Performance Intelligence — Government of Assam (Prototype)",
+  title: "RTPS Performance Intelligence — Government of Assam",
   description:
-    "Continuous RTPS Service Delivery Performance & SLA Monitoring — Prototype for the Assam RTPS Ecosystem",
+    "Welcome to Data-Driven RTPS Governance for a More Responsive Assam — Continuous RTPS Service Delivery Performance & SLA Monitoring Prototype",
 };
 
 export default function RootLayout({
@@ -22,22 +20,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${inter.className} bg-[#F7F9FB] text-[#1F2933] min-h-screen flex flex-col`}
+        className={`${inter.className} min-h-screen bg-[#07131F] text-[#1F2933] antialiased`}
       >
-        {/* Government Utility Bar */}
-        <TopUtilityBar />
-
-        {/* Main Government Header + Navigation */}
-        <MainHeader />
-
-        {/* Page Content Area */}
-        <main id="main-content" className="flex-1">
-          {children}
-        </main>
-
-        {/* Government Footer */}
-        <Footer />
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
 }
+
+

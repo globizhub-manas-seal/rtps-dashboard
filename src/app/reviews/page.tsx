@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 
 function ReviewsContent() {
   const searchParams = useSearchParams();
@@ -43,6 +44,8 @@ function ReviewsContent() {
 
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 10;
   const [selectedCase, setSelectedCase] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -243,74 +246,85 @@ function ReviewsContent() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  reviews.map((c) => (
-                    <TableRow
-                      key={c.id}
-                      onClick={() => setSelectedCase(c)}
-                      className={`hover:bg-slate-50 cursor-pointer transition-colors ${
-                        selectedCase?.id === c.id ? "bg-amber-50/50 font-medium" : ""
-                      }`}
-                    >
-                      <TableCell className="font-mono font-bold text-[#0f3443]">
-                        {c.caseRef}
-                        <span className="block text-[10px] text-slate-400 font-normal">
-                          {c.createdAt?.split("T")[0]}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-semibold text-slate-800">{c.name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">
-                          {c.targetId} • {c.office}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold text-red-600">
-                        {c.breachCount}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            c.priority === "CRITICAL"
-                              ? "bg-red-100 text-red-800"
-                              : c.priority === "HIGH"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {c.priority}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            c.status === "PENDING_ACTION"
-                              ? "bg-red-100 text-red-800"
-                              : c.status === "IN_REVIEW"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-emerald-100 text-emerald-800"
-                          }`}
-                        >
-                          {c.status.replace("_", " ")}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs text-[#1464A5] h-6 px-1.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCase(c);
-                          }}
-                        >
-                          Select →
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  (() => {
+                    const totalPages = Math.max(1, Math.ceil(reviews.length / pageSize));
+                    const paginatedReviews = reviews.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    return paginatedReviews.map((c) => (
+                      <TableRow
+                        key={c.id}
+                        onClick={() => setSelectedCase(c)}
+                        className={`hover:bg-slate-50 cursor-pointer transition-colors ${
+                          selectedCase?.id === c.id ? "bg-amber-50/50 font-medium" : ""
+                        }`}
+                      >
+                        <TableCell className="font-mono font-bold text-[#0f3443]">
+                          {c.caseRef}
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            {c.createdAt?.split("T")[0]}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-semibold text-slate-800">{c.name}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            {c.targetId} • {c.office}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-bold text-red-600">
+                          {c.breachCount}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              c.priority === "CRITICAL"
+                                ? "bg-red-100 text-red-800"
+                                : c.priority === "HIGH"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {c.priority}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              c.status === "PENDING_ACTION"
+                                ? "bg-red-100 text-red-800"
+                                : c.status === "IN_REVIEW"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-emerald-100 text-emerald-800"
+                            }`}
+                          >
+                            {c.status.replace("_", " ")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-[#1464A5] h-6 px-1.5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCase(c);
+                            }}
+                          >
+                            Select →
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  })()
                 )}
               </TableBody>
             </Table>
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.max(1, Math.ceil(reviews.length / pageSize))}
+            totalItems={reviews.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+          />
         </div>
 
         {/* Right: Selected Case Action Dossier (5 Cols) */}

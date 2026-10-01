@@ -9,7 +9,7 @@ import { Bell, ChevronDown, Globe, Search, Users } from "lucide-react";
 type Role = "ASCRTPS_ADMIN" | "DEPARTMENT_ADMIN" | "OFFICE_HEAD" | "REVIEWER" | "DPS";
 
 const ALL_NAV_ITEMS = [
-  { href: "/", label: "Dashboard", roles: ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN"], hasDropdown: false },
+  { href: "/dashboard", label: "Dashboard", roles: ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN"], hasDropdown: false },
   { href: "/sla-monitor", label: "SLA Monitor", roles: ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD"], hasDropdown: true },
   { href: "/departments", label: "Departments", roles: ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN"], hasDropdown: true },
   { href: "/offices", label: "Offices", roles: ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD"], hasDropdown: true },
@@ -41,7 +41,7 @@ export function MainHeader() {
     localStorage.setItem("demo_rbac_role", newRole);
     document.cookie = `demo_rbac_role=${newRole}; path=/; max-age=86400`; // 1 day
     setIsRoleDropdownOpen(false);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const allowedNavItems = ALL_NAV_ITEMS.filter((item) => item.roles.includes(activeRole));

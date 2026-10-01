@@ -15,6 +15,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Pagination } from "@/components/ui/pagination";
 
 function SLAMonitorContent() {
   const searchParams = useSearchParams();
@@ -30,6 +31,8 @@ function SLAMonitorContent() {
   const [selectedDps, setSelectedDps] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("slaConsumed"); // slaConsumed, dueDate, submissionDate
   const [sortOrder, setSortOrder] = useState<string>("desc");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 10;
 
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -66,14 +69,22 @@ function SLAMonitorContent() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchApplications();
   }, [activeTab, selectedDept, selectedDistrict, selectedOffice, selectedService, selectedDps, sortBy, sortOrder]);
 
   // Handle Search on Submit
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentPage(1);
     fetchApplications();
   };
+
+  const totalPages = Math.max(1, Math.ceil(applications.length / pageSize));
+  const paginatedApps = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return applications.slice(start, start + pageSize);
+  }, [applications, currentPage, pageSize]);
 
   // Status counts from loaded data
   const statusCounts = useMemo(() => {
@@ -362,7 +373,7 @@ function SLAMonitorContent() {
                   </TableCell>
                 </TableRow>
               ) : (
-                applications.map((app) => (
+                paginatedApps.map((app) => (
                   <TableRow
                     key={app.id}
                     onClick={() => handleAppClick(app)}
@@ -474,6 +485,13 @@ function SLAMonitorContent() {
             </TableBody>
           </Table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={applications.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* APPLICATION DETAILS DRAWER */}

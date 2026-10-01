@@ -70,7 +70,7 @@ export function Footer() {
           <div className="flex flex-col gap-4">
             <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-1">Platform</h3>
             <ul className="flex flex-col gap-2.5 text-[13px] text-slate-400">
-              <li><Link href="/" className="hover:text-white transition-colors">Executive Dashboard</Link></li>
+              <li><Link href="/dashboard" className="hover:text-white transition-colors">Executive Dashboard</Link></li>
               <li><Link href="/sla-monitor" className="hover:text-white transition-colors">SLA Monitor</Link></li>
               <li><Link href="/departments" className="hover:text-white transition-colors">Departments</Link></li>
               <li><Link href="/offices" className="hover:text-white transition-colors">Offices</Link></li>
@@ -111,19 +111,23 @@ export function Footer() {
           {/* Bottom Footer Info */}
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
             
-            {/* National Initiative Logos & Left Note */}
             <div className="flex flex-col xl:flex-row items-center gap-6 xl:gap-8">
-              <div className="flex items-center gap-4 opacity-80 hover:opacity-100 transition-opacity">
-                <img src="/logo/digital-india.png" alt="Digital India" className="h-6 w-auto object-contain rounded-sm" />
-                <div className="w-px h-4 bg-[#143947]"></div>
-                
-                <img src="/logo/make-in-india.png" alt="Make in India" className="h-6 w-auto object-contain rounded-sm" />
-                <div className="w-px h-4 bg-[#143947]"></div>
-
-                <img src="/logo/g20.png" alt="G20" className="h-6 w-auto object-contain rounded-sm" />
-                <div className="w-px h-4 bg-[#143947]"></div>
-
-                <img src="/logo/azadikaamritpahotsav.png" alt="Azadi Ka Amrit Mahotsav" className="h-7 w-auto object-contain rounded-sm" />
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="bg-white px-2 py-1 rounded shadow-xs flex items-center justify-center h-8">
+                  <img src="/logo/nic-logo.png" alt="National Informatics Centre" className="h-5 w-auto object-contain" />
+                </div>
+                <div className="bg-white px-2 py-1 rounded shadow-xs flex items-center justify-center h-8">
+                  <img src="/logo/meiyt.png" alt="Ministry of Electronics and Information Technology" className="h-5 w-auto object-contain" />
+                </div>
+                <div className="bg-white px-2 py-1 rounded shadow-xs flex items-center justify-center h-8">
+                  <img src="/logo/dpiit-logo.png" alt="DPIIT" className="h-5 w-auto object-contain" />
+                </div>
+                <div className="bg-white px-2 py-1 rounded shadow-xs flex items-center justify-center h-8">
+                  <img src="/logo/digital-india.png" alt="Digital India" className="h-5 w-auto object-contain" />
+                </div>
+                <div className="bg-white px-2 py-1 rounded shadow-xs flex items-center justify-center h-8">
+                  <img src="/logo/make-in-india.png" alt="Make in India" className="h-5 w-auto object-contain" />
+                </div>
               </div>
 
               <div className="hidden xl:block w-px h-8 bg-[#143947]/50"></div>
