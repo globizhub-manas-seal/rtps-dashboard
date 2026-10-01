@@ -17,6 +17,7 @@ export function Sidebar() {
           <NavItem href="/departments" icon={Building2} label="Department Performance" />
           <NavItem href="/reviews" icon={FileWarning} label="Administrative Review" />
           <NavItem href="/recognition" icon={Medal} label="Recognition" />
+          <NavItem href="/data-integration" icon={Activity} label="Data Integration" />
           <NavItem href="/settings/sla-rules" icon={Settings} label="SLA Rules" />
         </nav>
       </div>
