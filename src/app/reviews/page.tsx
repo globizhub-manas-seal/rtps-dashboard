@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -20,7 +20,10 @@ import {
   MapPin,
   ExternalLink,
   ChevronRight,
-  Gavel
+  Gavel,
+  RefreshCw,
+  Plus,
+  Printer
 } from "lucide-react";
 import {
   Dialog,
@@ -33,566 +36,530 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
-import { StatusBadge } from "@/components/ui/status-badge";
 
-interface ReviewCase {
-  id: string;
-  caseRef: string;
-  targetId: string;
-  targetType: "DPS" | "Office";
-  name: string;
-  designation: string;
-  department: string;
-  office: string;
-  district: string;
-  status: "Pending Action" | "Notice Dispatched" | "Explanation Received" | "Review Concluded";
-  priority: "High" | "Critical" | "Standard";
-  slaCompliance: number;
-  breachCount: number;
-  repeatDelayCount: number;
-  primaryIssue: string;
-  sectionCited: string;
-  daysRemainingForResponse?: number;
-  explanationText?: string;
-  evidenceApps: {
-    appId: string;
-    service: string;
-    citizen: string;
-    slaDays: number;
-    overdueDays: number;
-    delayAttribution: string;
-    status: string;
-  }[];
-}
-
-const reviewCases: ReviewCase[] = [
-  {
-    id: "REV-2026-8842",
-    caseRef: "RTPS/REV/2026/8842",
-    targetId: "DPS-104",
-    targetType: "DPS",
-    name: "Sri Ramen Barman",
-    designation: "Circle Officer (CO)",
-    department: "Revenue & Disaster Mgmt",
-    office: "Karimganj Circle",
-    district: "Karimganj",
-    status: "Pending Action",
-    priority: "Critical",
-    slaCompliance: 71,
-    breachCount: 61,
-    repeatDelayCount: 18,
-    primaryIssue: "Systemic delays in Land Mutation and persistent breach of statutory 30-day timeline.",
-    sectionCited: "Section 8(1) & Rule 14, ARTPS Act 2012",
-    daysRemainingForResponse: 7,
-    evidenceApps: [
-      {
-        appId: "RTPS-2026-99214",
-        service: "Mutation / Partition of Land",
-        citizen: "Hemanta Kalita",
-        slaDays: 30,
-        overdueDays: 4,
-        delayAttribution: "Field report delayed at Lot Mandal level (68%)",
-        status: "At Risk",
-      },
-      {
-        appId: "RTPS-2026-99182",
-        service: "Caste Certificate",
-        citizen: "Subrata Roy",
-        slaDays: 15,
-        overdueDays: 2,
-        delayAttribution: "Community recommendation scrutiny pending (55%)",
-        status: "At Risk",
-      },
-      {
-        appId: "RTPS-2026-99105",
-        service: "Permanent Residence Cert",
-        citizen: "Monojit Das",
-        slaDays: 14,
-        overdueDays: 3,
-        delayAttribution: "Police verification report not expedited (78%)",
-        status: "Critical",
-      },
-    ],
-  },
-  {
-    id: "REV-2026-8839",
-    caseRef: "RTPS/UMA/2026/8839",
-    targetId: "OFF-SON-01",
-    targetType: "Office",
-    name: "Tezpur Municipal Board",
-    designation: "Executive Board / Municipal Cell",
-    department: "Urban & Municipal Affairs",
-    office: "Tezpur Municipal",
-    district: "Sonitpur",
-    status: "Notice Dispatched",
-    priority: "High",
-    slaCompliance: 82,
-    breachCount: 95,
-    repeatDelayCount: 14,
-    primaryIssue: "Backlog in Trade License issuance and fire safety clearance NOCs exceeding statutory limits.",
-    sectionCited: "Section 9(2), ARTPS Act 2012",
-    daysRemainingForResponse: 3,
-    evidenceApps: [
-      {
-        appId: "RTPS-2026-98711",
-        service: "Trade License Renewal",
-        citizen: "Assam Trading Co.",
-        slaDays: 10,
-        overdueDays: 8,
-        delayAttribution: "Divisional inspection pending (62%)",
-        status: "Breached",
-      },
-    ],
-  },
-  {
-    id: "REV-2026-8815",
-    caseRef: "RTPS/REV/2026/8815",
-    targetId: "DPS-109",
-    targetType: "DPS",
-    name: "Sri Manabendra Nath",
-    designation: "Circle Officer (CO)",
-    department: "Revenue & Disaster Mgmt",
-    office: "Silchar Circle",
-    district: "Cachar",
-    status: "Explanation Received",
-    priority: "High",
-    slaCompliance: 78,
-    breachCount: 44,
-    repeatDelayCount: 14,
-    primaryIssue: "Permanent Residence Certificate counter delays due to Lot Mandal shortage.",
-    sectionCited: "Section 8(1), ARTPS Act 2012",
-    explanationText:
-      "Explanation submitted on 28 Sep 2026: 3 Lot Mandals were deputed for emergency flood assessment. Counter operations have now been restored with additional data entry operators.",
-    evidenceApps: [
-      {
-        appId: "RTPS-2026-98920",
-        service: "Permanent Residence Cert",
-        citizen: "Debashis Nath",
-        slaDays: 14,
-        overdueDays: 6,
-        delayAttribution: "Counter rush and field staff deputation (72%)",
-        status: "Breached",
-      },
-    ],
-  },
-];
-
-function AdministrativeReviewContent() {
+function ReviewsContent() {
   const searchParams = useSearchParams();
-  const dpsParam = searchParams.get("dps");
+  const preselectedDps = searchParams.get("targetDps");
 
-  const [selectedCaseId, setSelectedCaseId] = useState<string>(
-    dpsParam ? reviewCases.find((c) => c.targetId === dpsParam)?.id || reviewCases[0].id : reviewCases[0].id
-  );
-  const [filterTab, setFilterTab] = useState<"all" | "action" | "dispatched" | "received">("all");
-  const [isNoticeDialogOpen, setIsNoticeDialogOpen] = useState(false);
-  const [noticeSentSuccess, setNoticeSentSuccess] = useState(false);
-  const [adminNotes, setAdminNotes] = useState("");
-  const [notesSaved, setNotesSaved] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedCase, setSelectedCase] = useState<any>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  const selectedCase = reviewCases.find((c) => c.id === selectedCaseId) || reviewCases[0];
+  // New Case Dialog
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newTargetDps, setNewTargetDps] = useState(preselectedDps || "DPS-104");
+  const [newReason, setNewReason] = useState("SLA compliance below configured threshold with multiple statutory delays.");
+  const [newPriority, setNewPriority] = useState("HIGH");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const filteredCases = reviewCases.filter((c) => {
-    if (filterTab === "action") return c.status === "Pending Action";
-    if (filterTab === "dispatched") return c.status === "Notice Dispatched";
-    if (filterTab === "received") return c.status === "Explanation Received";
-    return true;
-  });
+  // Status update
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  const handleDispatchNotice = () => {
-    setIsNoticeDialogOpen(false);
-    setNoticeSentSuccess(true);
-    setTimeout(() => setNoticeSentSuccess(false), 5000);
+  const fetchReviews = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/reviews");
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(data.reviews || []);
+        if (data.reviews?.length > 0 && !selectedCase) {
+          setSelectedCase(data.reviews[0]);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch reviews:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveNotes = () => {
-    setNotesSaved(true);
-    setTimeout(() => setNotesSaved(false), 3000);
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const handleCreateCase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetDpsCode: newTargetDps,
+          reason: newReason,
+          priority: newPriority,
+          sectionCited: "Assam RTPS Act 2012, Sec 7(1) & Rule 14",
+          primaryIssue: `Statutory compliance below configured threshold.`,
+        }),
+      });
+
+      if (res.ok) {
+        setIsCreateOpen(false);
+        fetchReviews();
+      }
+    } catch (e) {
+      console.error("Failed to create review:", e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateStatus = async (caseId: string, nextStatus: string) => {
+    try {
+      setIsUpdatingStatus(true);
+      const res = await fetch(`/api/reviews/${caseId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: nextStatus,
+          explanationText: nextStatus === "IN_REVIEW"
+            ? "Official notice served to officer. Explanation awaited within 7 calendar days."
+            : "Explanation reviewed and recorded. Corrective staffing action mandated by District Commissioner.",
+        }),
+      });
+
+      if (res.ok) {
+        await fetchReviews();
+        if (selectedCase?.id === caseId) {
+          setSelectedCase((prev: any) => ({ ...prev, status: nextStatus }));
+        }
+      }
+    } catch (e) {
+      console.error("Status update error:", e);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
   return (
-    <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto space-y-5">
+    <div className="py-5 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto space-y-6">
+      {/* Header */}
       <PageHeader
-        title="Administrative Review & Decision Support"
-        subtitle="Supervisory review, explanation requisitions, and statutory penalty decision support under ARTPS Act 2012"
+        title="Administrative Reviews & Compliance Enforcement"
+        subtitle="Formal statutory show-cause notice life-cycle & disciplinary hearings under Assam RTPS Act 2012"
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs bg-amber-400/15 text-amber-900 border border-amber-400/30 px-2.5 py-1 rounded font-bold">
-            ● 3 ACTIVE INQUIRIES
-          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchReviews}
+            disabled={loading}
+            className="border-slate-300 text-xs font-semibold text-[#0f3443] flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh Cases
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setIsCreateOpen(true)}
+            className="bg-red-700 hover:bg-red-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs"
+          >
+            <Plus className="w-4 h-4" />
+            Create Review Case
+          </Button>
         </div>
       </PageHeader>
 
-      {/* Notice Success Banner */}
-      {noticeSentSuccess && (
-        <div className="bg-[#e8f5ec] border border-[#b9e4c5] p-3.5 rounded text-xs text-[#16803c] flex items-center justify-between animate-in fade-in">
-          <div className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 className="w-4 h-4 text-[#16803c]" />
-            Official Explanation Requisition dispatched successfully via Sewa Setu e-Office workflow! Notice Ref: {selectedCase.caseRef}
-          </div>
-          <button onClick={() => setNoticeSentSuccess(false)} className="text-green-900 font-bold hover:underline">
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Main Review Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 min-h-[640px]">
-        {/* Left Column: Case Queue */}
-        <div className="w-full lg:w-[380px] flex-shrink-0 space-y-3">
-          {/* Queue Filter Tabs */}
-          <div className="flex rounded-md border border-slate-200 bg-white p-1 text-xs">
-            <button
-              onClick={() => setFilterTab("all")}
-              className={`flex-1 py-1 text-center font-semibold rounded ${
-                filterTab === "all" ? "bg-[#0f3443] text-white" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              All ({reviewCases.length})
-            </button>
-            <button
-              onClick={() => setFilterTab("action")}
-              className={`flex-1 py-1 text-center font-semibold rounded ${
-                filterTab === "action" ? "bg-[#0f3443] text-white" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Action (1)
-            </button>
-            <button
-              onClick={() => setFilterTab("dispatched")}
-              className={`flex-1 py-1 text-center font-semibold rounded ${
-                filterTab === "dispatched" ? "bg-[#0f3443] text-white" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Dispatched (1)
-            </button>
-            <button
-              onClick={() => setFilterTab("received")}
-              className={`flex-1 py-1 text-center font-semibold rounded ${
-                filterTab === "received" ? "bg-[#0f3443] text-white" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Replied (1)
-            </button>
+      {/* WORKFLOW PIPELINE EXPLANATION BANNER */}
+      <div className="bg-white border border-slate-200 rounded-md p-4 shadow-2xs">
+        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
+          Statutory Administrative Review Life-Cycle Workflow
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 rounded border border-red-200 bg-red-50/50">
+            <span className="font-bold text-red-950 flex items-center gap-1.5">
+              1. Performance Trigger
+            </span>
+            <p className="text-[11px] text-red-800 mt-1">
+              SLA Engine identifies DPS with &lt;75% compliance or &gt;10 repeat delays.
+            </p>
           </div>
 
-          {/* Case List Cards */}
-          <div className="space-y-2.5">
-            {filteredCases.map((c) => {
-              const isSelected = selectedCaseId === c.id;
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedCaseId(c.id)}
-                  className={`cursor-pointer bg-white border rounded-md p-4 transition-all ${
-                    isSelected
-                      ? "border-[#1464A5] ring-2 ring-[#1464A5]/20 shadow-sm"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-1.5">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono font-bold text-[#1464A5]">{c.targetId}</span>
-                        <span className="text-[10px] uppercase font-bold text-slate-400">• {c.targetType}</span>
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-900 leading-tight">{c.name}</h3>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
-                        c.status === "Pending Action"
-                          ? "bg-red-50 text-[#C62828] border-red-200"
-                          : c.status === "Notice Dispatched"
-                          ? "bg-amber-50 text-amber-800 border-amber-200"
-                          : "bg-green-50 text-[#16803c] border-green-200"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-slate-500 mb-3">
-                    {c.department} • {c.office}
-                  </p>
-
-                  <div className="space-y-1 text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">SLA Compliance:</span>
-                      <span className="font-bold text-[#C62828] font-mono">{c.slaCompliance}%</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Recorded Breaches:</span>
-                      <span className="font-bold text-slate-900 font-mono">{c.breachCount} cases</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Repeat Delays:</span>
-                      <span className="font-bold text-[#C62828] font-mono">{c.repeatDelayCount} identified</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="p-3 rounded border border-amber-200 bg-amber-50/50">
+            <span className="font-bold text-amber-950 flex items-center gap-1.5">
+              2. Pending Action
+            </span>
+            <p className="text-[11px] text-amber-800 mt-1">
+              Case opened in PostgreSQL; evidence applications linked for notice dispatch.
+            </p>
           </div>
 
-          {/* Statutory Policy Disclaimer */}
-          <div className="bg-[#EEF6FA] border border-[#cfe2ec] p-3 rounded text-[11px] text-[#123B4A] space-y-1">
-            <p className="font-bold uppercase tracking-wider">Statutory Authority Notice</p>
-            <p className="leading-relaxed">
-              The platform provides evidence and decision support. Final administrative action or penalties under Section 8 of ARTPS Act remain solely with the authorised appellate authority.
+          <div className="p-3 rounded border border-blue-200 bg-blue-50/50">
+            <span className="font-bold text-blue-950 flex items-center gap-1.5">
+              3. In Review / Notice Served
+            </span>
+            <p className="text-[11px] text-blue-800 mt-1">
+              Formal explanation requested; officer response tracked with statutory deadline.
+            </p>
+          </div>
+
+          <div className="p-3 rounded border border-emerald-200 bg-emerald-50/50">
+            <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+              4. Review Concluded
+            </span>
+            <p className="text-[11px] text-emerald-800 mt-1">
+              Final order passed with corrective workload reallocation or warning.
             </p>
           </div>
         </div>
+      </div>
 
-        {/* Right Column: Case Detail & Evidence Docket */}
-        <div className="flex-1 min-w-0">
-          <div className="bg-white border border-slate-200 rounded-md shadow-2xs p-6 space-y-5">
-            {/* Case Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-4 border-b border-slate-200">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-mono font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
-                    {selectedCase.caseRef}
+      {/* CASES LIST & ACTIVE DOSSIER */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left: Review Cases Table (7 Cols) */}
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-md shadow-xs overflow-hidden">
+          <div className="p-3.5 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <h3 className="text-xs font-bold text-[#0f3443] uppercase tracking-wider">
+              Active PostgreSQL Review Cases ({reviews.length})
+            </h3>
+            <span className="text-[10px] text-slate-500 font-mono">Live DB Records</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50 border-b border-slate-200">
+                <TableRow>
+                  <TableHead className="text-slate-700 font-bold text-xs py-2.5">Case Ref</TableHead>
+                  <TableHead className="text-slate-700 font-bold text-xs">Target DPS / Office</TableHead>
+                  <TableHead className="text-right text-slate-700 font-bold text-xs">Breaches</TableHead>
+                  <TableHead className="text-center text-slate-700 font-bold text-xs">Priority</TableHead>
+                  <TableHead className="text-center text-slate-700 font-bold text-xs">Status</TableHead>
+                  <TableHead className="text-right text-slate-700 font-bold text-xs">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-slate-100 text-xs">
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-slate-500">
+                      Loading cases from PostgreSQL...
+                    </TableCell>
+                  </TableRow>
+                ) : reviews.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-slate-500">
+                      No review cases recorded yet. Click &quot;Create Review Case&quot; to open one.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  reviews.map((c) => (
+                    <TableRow
+                      key={c.id}
+                      onClick={() => setSelectedCase(c)}
+                      className={`hover:bg-slate-50 cursor-pointer transition-colors ${
+                        selectedCase?.id === c.id ? "bg-amber-50/50 font-medium" : ""
+                      }`}
+                    >
+                      <TableCell className="font-mono font-bold text-[#0f3443]">
+                        {c.caseRef}
+                        <span className="block text-[10px] text-slate-400 font-normal">
+                          {c.createdAt?.split("T")[0]}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold text-slate-800">{c.name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          {c.targetId} • {c.office}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-red-600">
+                        {c.breachCount}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            c.priority === "CRITICAL"
+                              ? "bg-red-100 text-red-800"
+                              : c.priority === "HIGH"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {c.priority}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            c.status === "PENDING_ACTION"
+                              ? "bg-red-100 text-red-800"
+                              : c.status === "IN_REVIEW"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {c.status.replace("_", " ")}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-[#1464A5] h-6 px-1.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCase(c);
+                          }}
+                        >
+                          Select →
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Right: Selected Case Action Dossier (5 Cols) */}
+        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-md shadow-xs p-5 space-y-4">
+          {selectedCase ? (
+            <>
+              <div className="flex justify-between items-start pb-3 border-b border-slate-100">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Active Administrative Case
                   </span>
-                  <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded uppercase">
-                    Priority: {selectedCase.priority}
-                  </span>
+                  <h3 className="text-lg font-bold font-mono text-[#0f3443]">{selectedCase.caseRef}</h3>
+                  <p className="text-xs text-slate-600">{selectedCase.sectionCited}</p>
                 </div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Administrative Review: {selectedCase.name} ({selectedCase.targetId})
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {selectedCase.designation} • {selectedCase.department} • {selectedCase.office}, {selectedCase.district}
+                <span
+                  className={`px-2.5 py-1 rounded text-xs font-bold ${
+                    selectedCase.status === "PENDING_ACTION"
+                      ? "bg-red-100 text-red-800"
+                      : selectedCase.status === "IN_REVIEW"
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}
+                >
+                  {selectedCase.status.replace("_", " ")}
+                </span>
+              </div>
+
+              {/* Target Details */}
+              <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Target Officer:</span>
+                  <span className="font-bold text-slate-900">{selectedCase.name} ({selectedCase.targetId})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Office & District:</span>
+                  <span className="font-medium text-slate-800">{selectedCase.office}, {selectedCase.district}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">SLA Compliance:</span>
+                  <span className="font-mono font-bold text-red-700">{selectedCase.slaCompliance}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Total Breaches Evidenced:</span>
+                  <span className="font-mono font-bold text-red-700">{selectedCase.breachCount} applications</span>
+                </div>
+              </div>
+
+              {/* Primary Issue */}
+              <div>
+                <h4 className="text-[11px] font-bold text-slate-600 uppercase mb-1">Allegation / Primary Issue</h4>
+                <p className="text-xs text-slate-800 bg-red-50/50 p-2.5 rounded border border-red-200 leading-relaxed">
+                  {selectedCase.primaryIssue}
                 </p>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {selectedCase.targetType === "DPS" && (
-                  <Link href={`/dps/${selectedCase.targetId}`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-white text-[#1464A5] border-slate-300 hover:bg-slate-50 text-xs font-semibold"
+              {/* Linked Evidence Applications */}
+              <div>
+                <h4 className="text-[11px] font-bold text-slate-600 uppercase mb-1.5">
+                  Linked Evidence Applications ({selectedCase.evidenceApps?.length || 0})
+                </h4>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {selectedCase.evidenceApps?.map((app: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded bg-slate-50 border border-slate-200 text-xs flex justify-between items-center"
                     >
-                      DPS Dossier <ExternalLink className="w-3 h-3 ml-1" />
-                    </Button>
-                  </Link>
+                      <div>
+                        <span className="font-mono font-bold text-[#0f3443]">{app.appId}</span>
+                        <p className="text-[10px] text-slate-500">{app.service} • {app.citizen}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
+                        {app.status || "Breached"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Workflow State Transition Controls */}
+              <div className="pt-3 border-t border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Workflow State Transition (PostgreSQL)
+                  </span>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-slate-300 text-[#0f3443] gap-1.5"
+                    onClick={() => window.open(`/reviews/${selectedCase.id}/notice`, "_blank")}
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Print PDF Notice
+                  </Button>
+                </div>
+
+                {selectedCase.status === "PENDING_ACTION" && (
+                  <Button
+                    onClick={() => handleUpdateStatus(selectedCase.id, "IN_REVIEW")}
+                    disabled={isUpdatingStatus}
+                    className="w-full bg-[#1464A5] hover:bg-[#0f3443] text-white text-xs font-semibold h-8"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    Issue Notice → Move to &quot;In Review&quot;
+                  </Button>
                 )}
 
-                {/* Dialog to Dispatch Requisition Notice */}
-                <Dialog open={isNoticeDialogOpen} onOpenChange={setIsNoticeDialogOpen}>
-                  <DialogTrigger className="bg-[#1464A5] hover:bg-[#123B4A] text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs">
-                    <Send className="w-3.5 h-3.5" />
-                    Request Formal Explanation
-                  </DialogTrigger>
-                  <DialogContent className="max-w-xl">
-                    {/* Official Letterhead */}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 relative flex-shrink-0">
-                          <Image
-                            src="/logo/assam-gov-logo.png"
-                            alt="Govt of Assam"
-                            width={36}
-                            height={36}
-                            className="object-contain"
-                            style={{ width: "auto", height: "auto" }}
-                          />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-[#0f3443] uppercase tracking-wider">
-                            GOVERNMENT OF ASSAM • অসম চৰকাৰ
-                          </p>
-                          <p className="text-[10px] text-slate-500">
-                            RTPS Administrative Directorate • Sewa Setu Governance
-                          </p>
-                        </div>
-                      </div>
-                      <div className="w-8 h-8 relative flex-shrink-0 bg-white p-0.5 rounded border border-slate-200">
-                        <Image
-                          src="/logo/sewa-setu.png"
-                          alt="Sewa Setu"
-                          width={28}
-                          height={28}
-                          className="object-contain"
-                          style={{ width: "auto", height: "auto" }}
-                        />
-                      </div>
-                    </div>
+                {selectedCase.status === "IN_REVIEW" && (
+                  <Button
+                    onClick={() => handleUpdateStatus(selectedCase.id, "CONCLUDED")}
+                    disabled={isUpdatingStatus}
+                    className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold h-8"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                    Record Explanation → Conclude Review
+                  </Button>
+                )}
 
-                    <DialogHeader>
-                      <DialogTitle className="text-[#1F2933] text-base">
-                        Requisition for Explanation Notice (ARTPS Act 2012)
-                      </DialogTitle>
-                      <DialogDescription className="text-[#64748b] text-xs">
-                        Issue a statutory show-cause notice under Section 8(1) of the ARTPS Act 2012 regarding {selectedCase.breachCount} recorded SLA breaches.
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-3 mt-2 text-xs">
-                      <div className="bg-[#F7F9FB] p-2.5 rounded border border-slate-200 space-y-1">
-                        <p className="font-semibold text-slate-700">
-                          Notice Docket: <span className="font-mono text-[#0f3443] font-bold">{selectedCase.caseRef}</span>
-                        </p>
-                        <p className="text-slate-600">
-                          Recipient: <strong>{selectedCase.name}</strong>, {selectedCase.designation} ({selectedCase.office})
-                        </p>
-                        <p className="text-slate-500 text-[11px]">
-                          Statutory Timeline: 7 working days from date of receipt
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold uppercase text-slate-700 block mb-1">
-                          Notice Body / Terms of Explanation:
-                        </label>
-                        <Textarea
-                          defaultValue={`WHEREAS, the Sewa Setu RTPS Performance Intelligence system has recorded ${selectedCase.breachCount} SLA breaches and ${selectedCase.repeatDelayCount} recurring procedural delays under your jurisdiction at ${selectedCase.office}.\n\nNOW THEREFORE, under Section 8(1) and Rule 14 of the Assam Right to Public Services Act 2012, you are hereby called upon to submit reasons in writing within 7 working days, failing which formal administrative inquiry shall be recommended to the First Appellate Authority.`}
-                          className="min-h-[120px] border-slate-300 text-xs font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <DialogFooter className="mt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsNoticeDialogOpen(false)}
-                        className="border-slate-300 text-xs"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleDispatchNotice}
-                        className="bg-[#1464A5] hover:bg-[#123B4A] text-white text-xs font-semibold"
-                      >
-                        Dispatch Official Notice
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-
-            {/* Statutory Violation Summary Strip */}
-            <div className="bg-red-50/50 border border-red-200 rounded p-3.5 text-xs text-red-950 flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-[#C62828] flex-shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-bold uppercase tracking-wider text-red-900 block text-[11px]">
-                  Statutory Rule Violated: {selectedCase.sectionCited}
-                </span>
-                <p className="leading-relaxed text-slate-800">{selectedCase.primaryIssue}</p>
-                {selectedCase.explanationText && (
-                  <div className="mt-2 p-2 bg-white rounded border border-green-200 text-slate-800">
-                    <span className="font-bold text-[#16803c] block text-[11px]">Explanation on Record:</span>
-                    <p className="text-[11px] mt-0.5">{selectedCase.explanationText}</p>
+                {selectedCase.status === "CONCLUDED" && (
+                  <div className="bg-emerald-50 text-emerald-900 border border-emerald-200 p-2.5 rounded text-xs text-center font-medium">
+                    ✓ Administrative Review Concluded in PostgreSQL.
                   </div>
                 )}
               </div>
+            </>
+          ) : (
+            <div className="py-20 text-center text-xs text-slate-400">
+              Select a review case from the table to inspect evidence and progress workflow.
             </div>
-
-            {/* Performance KPIs for this review case */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-              <div className="bg-[#F7F9FB] border border-slate-200 rounded p-3">
-                <span className="text-[10px] font-bold uppercase text-slate-500 block">SLA Compliance</span>
-                <span className="text-2xl font-bold font-mono text-[#C62828]">{selectedCase.slaCompliance}%</span>
-              </div>
-              <div className="bg-[#F7F9FB] border border-slate-200 rounded p-3">
-                <span className="text-[10px] font-bold uppercase text-slate-500 block">Recorded Breaches</span>
-                <span className="text-2xl font-bold font-mono text-slate-900">{selectedCase.breachCount}</span>
-              </div>
-              <div className="bg-[#F7F9FB] border border-slate-200 rounded p-3">
-                <span className="text-[10px] font-bold uppercase text-slate-500 block">Repeat Delays</span>
-                <span className="text-2xl font-bold font-mono text-amber-600">{selectedCase.repeatDelayCount}</span>
-              </div>
-              <div className="bg-[#F7F9FB] border border-slate-200 rounded p-3">
-                <span className="text-[10px] font-bold uppercase text-slate-500 block">Response Window</span>
-                <span className="text-2xl font-bold font-mono text-[#1464A5]">
-                  {selectedCase.daysRemainingForResponse} days
-                </span>
-              </div>
-            </div>
-
-            {/* Breached Applications Evidence Table */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Evidence Docket: Breached Applications Under Review
-                </h3>
-                <span className="text-[11px] text-slate-500">
-                  Showing {selectedCase.evidenceApps.length} sample applications
-                </span>
-              </div>
-              <div className="border border-slate-200 rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#EEF6FA] hover:bg-[#EEF6FA]">
-                      <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider py-2.5">Application ID</TableHead>
-                      <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Service</TableHead>
-                      <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Citizen</TableHead>
-                      <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-right">Statutory SLA</TableHead>
-                      <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-right">Overdue By</TableHead>
-                      <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Attribution & Cause</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedCase.evidenceApps.map((app, idx) => (
-                      <TableRow key={idx} className="border-b border-slate-100 hover:bg-[#F7F9FB]">
-                        <TableCell className="text-xs font-bold font-mono text-[#1464A5]">{app.appId}</TableCell>
-                        <TableCell className="text-xs font-medium text-slate-900">{app.service}</TableCell>
-                        <TableCell className="text-xs text-slate-600">{app.citizen}</TableCell>
-                        <TableCell className="text-xs text-right font-mono text-slate-600">{app.slaDays} days</TableCell>
-                        <TableCell className="text-xs text-right font-mono font-bold text-[#C62828]">
-                          +{app.overdueDays} days
-                        </TableCell>
-                        <TableCell className="text-xs text-slate-600">{app.delayAttribution}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-
-            {/* Administrative Notes Box */}
-            <div className="bg-[#F7F9FB] border border-slate-200 rounded p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Supervisory Inquiry Notes & Action Log
-                </h3>
-                {notesSaved && (
-                  <span className="text-[11px] font-bold text-[#16803c] flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Notes recorded to case file
-                  </span>
-                )}
-              </div>
-              <Textarea
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Record observation, telephonic review remarks, or inquiry minutes for this case docket..."
-                className="min-h-[80px] bg-white border-slate-300 text-xs"
-              />
-              <div className="flex justify-end gap-2 pt-1">
-                <Button
-                  size="sm"
-                  onClick={handleSaveNotes}
-                  className="bg-[#0f3443] hover:bg-[#1a4d5e] text-white text-xs font-semibold"
-                >
-                  Save Notes to Docket
-                </Button>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
+
+      {/* CREATE REVIEW DIALOG */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="max-w-xl bg-white p-6">
+          <form onSubmit={handleCreateCase} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-[#0f3443] flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-red-600" />
+                Administrative Review
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Initiate a formal administrative review based on detected evidence.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 text-xs mt-2">
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Trigger</span>
+                <span className="text-red-700 font-medium flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Recurring SLA Delays</span>
+              </div>
+              
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Office</span>
+                <span className="text-slate-900 font-medium">Karimganj Circle Office</span>
+              </div>
+              
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">DPS</span>
+                <span className="text-slate-900 font-mono font-medium">{newTargetDps}</span>
+              </div>
+              
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Performance</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 w-32">SLA Compliance:</span>
+                    <span className="font-mono text-red-600 font-bold">74%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 w-32">Average TAT:</span>
+                    <span className="font-mono text-slate-800 font-bold">5.1 days</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 w-32">Repeat Delays:</span>
+                    <span className="font-mono text-slate-800 font-bold">12</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Affected Service</span>
+                <span className="text-slate-900 font-medium">Mutation / Partition of Land</span>
+              </div>
+              
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Delay Stage</span>
+                <span className="text-slate-900 font-medium">Document Verification</span>
+              </div>
+              
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Evidence</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-red-700 font-medium">12 delayed applications</span>
+                  <Link href="/sla-monitor" className="text-[#1464A5] hover:underline flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" /> View Applications
+                  </Link>
+                </div>
+              </div>
+              
+              <div className="border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Reviewer Notes</span>
+                <Textarea
+                  value={newReason}
+                  onChange={(e) => setNewReason(e.target.value)}
+                  rows={2}
+                  className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs"
+                  placeholder="Enter notes for this review..."
+                  required
+                />
+              </div>
+              
+              <div>
+                <span className="font-bold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">Status</span>
+                <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold uppercase text-[10px]">Pending Action</span>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateOpen(false)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSubmitting}
+                className="bg-red-700 hover:bg-red-800 text-white text-xs font-semibold shadow-2xs"
+              >
+                {isSubmitting ? "Initiating..." : "Initiate Administrative Review"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-export default function AdministrativeReview() {
+export default function ReviewsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading Review Dockets...</div>}>
-      <AdministrativeReviewContent />
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading Reviews...</div>}>
+      <ReviewsContent />
     </Suspense>
   );
 }

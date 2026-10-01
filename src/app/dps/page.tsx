@@ -1,13 +1,12 @@
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { mockData } from "@/lib/data";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Award,
   Filter,
@@ -19,549 +18,492 @@ import {
   ShieldAlert,
   ChevronRight,
   MapPin,
-  Building2
+  Building2,
+  RefreshCw,
+  TrendingUp,
+  Clock,
+  Layers,
+  CheckCircle2
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
-interface DPSRecord {
-  id: string;
-  name: string;
-  designation: string;
-  department: string;
-  office: string;
-  district: string;
-  applications: number;
-  compliance: number;
-  avgTat: number;
-  repeatDelays: number;
-  score: number;
-  status: "Excellent" | "Strong" | "Attention" | "Review Required";
-  eligibleForCommendation?: boolean;
-}
-
-const comprehensiveDpsList: DPSRecord[] = [
-  {
-    id: "DPS-021",
-    name: "Sri Bhaskar Jyoti Sarma",
-    designation: "Circle Officer (CO)",
-    department: "Revenue",
-    office: "Guwahati Circle",
-    district: "Kamrup Metro",
-    applications: 1420,
-    compliance: 99,
-    avgTat: 2.8,
-    repeatDelays: 0,
-    score: 98,
-    status: "Excellent",
-    eligibleForCommendation: true,
-  },
-  {
-    id: "DPS-087",
-    name: "Smti Parbin Sultana",
-    designation: "District Transport Officer (DTO)",
-    department: "Transport",
-    office: "DTO Kamrup Metro",
-    district: "Kamrup Metro",
-    applications: 980,
-    compliance: 98,
-    avgTat: 3.1,
-    repeatDelays: 0,
-    score: 96,
-    status: "Strong",
-    eligibleForCommendation: true,
-  },
-  {
-    id: "DPS-112",
-    name: "Dr. Hemen Hazarika",
-    designation: "Medical Registrar & Superintendent",
-    department: "Health",
-    office: "Jorhat District Hospital",
-    district: "Jorhat",
-    applications: 840,
-    compliance: 97,
-    avgTat: 3.5,
-    repeatDelays: 0,
-    score: 94,
-    status: "Strong",
-    eligibleForCommendation: true,
-  },
-  {
-    id: "DPS-054",
-    name: "Sri Anjan Kumar Das",
-    designation: "Inspector of Schools (IS)",
-    department: "Education",
-    office: "IS Office Dibrugarh",
-    district: "Dibrugarh",
-    applications: 630,
-    compliance: 96,
-    avgTat: 3.9,
-    repeatDelays: 0,
-    score: 92,
-    status: "Strong",
-    eligibleForCommendation: true,
-  },
-  {
-    id: "DPS-033",
-    name: "Sri Pratul Baruah",
-    designation: "Circle Officer (CO)",
-    department: "Revenue",
-    office: "Jorhat Sadar Circle",
-    district: "Jorhat",
-    applications: 1120,
-    compliance: 94,
-    avgTat: 3.4,
-    repeatDelays: 1,
-    score: 93,
-    status: "Strong",
-    eligibleForCommendation: true,
-  },
-  {
-    id: "DPS-045",
-    name: "Sri Hiranya Goswami",
-    designation: "Circle Officer (CO)",
-    department: "Revenue",
-    office: "Nagaon Sadar Circle",
-    district: "Nagaon",
-    applications: 1350,
-    compliance: 93,
-    avgTat: 3.5,
-    repeatDelays: 2,
-    score: 91,
-    status: "Strong",
-    eligibleForCommendation: true,
-  },
-  {
-    id: "DPS-231",
-    name: "Sri Diganta Bora",
-    designation: "Executive Officer",
-    department: "Urban Affairs",
-    office: "Tezpur Municipal Board",
-    district: "Sonitpur",
-    applications: 530,
-    compliance: 82,
-    avgTat: 6.8,
-    repeatDelays: 7,
-    score: 79,
-    status: "Attention",
-  },
-  {
-    id: "DPS-104",
-    name: "Sri Ramen Barman",
-    designation: "Circle Officer (CO)",
-    department: "Revenue",
-    office: "Karimganj Circle",
-    district: "Karimganj",
-    applications: 642,
-    compliance: 71,
-    avgTat: 8.4,
-    repeatDelays: 18,
-    score: 72,
-    status: "Review Required",
-  },
-  {
-    id: "DPS-109",
-    name: "Sri Manabendra Nath",
-    designation: "Circle Officer (CO)",
-    department: "Revenue",
-    office: "Silchar Circle",
-    district: "Cachar",
-    applications: 890,
-    compliance: 78,
-    avgTat: 7.1,
-    repeatDelays: 14,
-    score: 77,
-    status: "Review Required",
-  },
-  {
-    id: "DPS-302",
-    name: "Sri Rafiqul Islam",
-    designation: "Municipal Secretary",
-    department: "Urban Affairs",
-    office: "Dhubri Municipal Cell",
-    district: "Dhubri",
-    applications: 410,
-    compliance: 74,
-    avgTat: 7.6,
-    repeatDelays: 11,
-    score: 75,
-    status: "Review Required",
-  },
-  {
-    id: "DPS-155",
-    name: "Sri Bwhwiti Narzary",
-    designation: "Circle Officer (CO)",
-    department: "Revenue",
-    office: "Kokrajhar Sadar Circle",
-    district: "Kokrajhar",
-    applications: 720,
-    compliance: 86,
-    avgTat: 5.4,
-    repeatDelays: 5,
-    score: 84,
-    status: "Attention",
-  },
-];
-
-function DPSPerformanceContent() {
+function DPSContent() {
   const searchParams = useSearchParams();
-  const initialFilter = searchParams.get("filter") === "high" ? "high" : "all";
+  const filterParam = searchParams.get("filter");
 
-  const [filterMode, setFilterMode] = useState<string>(initialFilter);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDept, setSelectedDept] = useState("all");
-  const [selectedDistrict, setSelectedDistrict] = useState("all");
-  const [sortBy, setSortBy] = useState<"compliance" | "score" | "applications" | "repeat">("score");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [dpsList, setDpsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedDept, setSelectedDept] = useState<string>("all");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>(filterParam === "chronic" ? "Review Required" : "all");
+  const [sortBy, setSortBy] = useState<string>("score"); // score, compliance, volume, breaches
 
-  const getScoreStyle = (score: number) => {
-    if (score >= 90) return "text-[#16803c] bg-[#e8f5ec] border-[#b9e4c5]";
-    if (score >= 80) return "text-[#d97706] bg-[#fef7e6] border-[#fde6a0]";
-    return "text-[#C62828] bg-[#fde8e8] border-[#f5b5b5]";
+  // Review Dialog State
+  const [reviewDialogOpen, setReviewDialogOpen] = useState<boolean>(false);
+  const [targetOfficer, setTargetOfficer] = useState<any>(null);
+  const [submittingReview, setSubmittingReview] = useState<boolean>(false);
+  const [reviewSuccessMessage, setReviewSuccessMessage] = useState<string>("");
+
+  const fetchDpsOfficers = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/dps");
+      if (res.ok) {
+        const data = await res.json();
+        setDpsList(data.dpsOfficers || []);
+      }
+    } catch (err) {
+      console.error("Failed to load DPS officers:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Departments list
-  const departments = useMemo(() => {
-    const set = new Set(comprehensiveDpsList.map((d) => d.department));
-    return Array.from(set);
+  useEffect(() => {
+    fetchDpsOfficers();
   }, []);
 
-  // Districts list
-  const districts = useMemo(() => {
-    const set = new Set(comprehensiveDpsList.map((d) => d.district));
-    return Array.from(set);
-  }, []);
-
-  // Filter & sort
-  const filteredDps = useMemo(() => {
-    return comprehensiveDpsList
-      .filter((dps) => {
-        // Mode filter
-        if (filterMode === "high" && dps.score < 90) return false;
-        if (filterMode === "review" && dps.score >= 80) return false;
-
-        // Search
-        const matchesSearch =
-          dps.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          dps.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          dps.office.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          dps.district.toLowerCase().includes(searchTerm.toLowerCase());
-
-        // Dropdowns
-        const matchesDept = selectedDept === "all" || dps.department === selectedDept;
-        const matchesDistrict = selectedDistrict === "all" || dps.district === selectedDistrict;
-
-        return matchesSearch && matchesDept && matchesDistrict;
-      })
-      .sort((a, b) => {
-        let valA: number = a.score;
-        let valB: number = b.score;
-        if (sortBy === "compliance") {
-          valA = a.compliance;
-          valB = b.compliance;
-        } else if (sortBy === "applications") {
-          valA = a.applications;
-          valB = b.applications;
-        } else if (sortBy === "repeat") {
-          valA = a.repeatDelays;
-          valB = b.repeatDelays;
-        } else if (sortBy === "score") {
-          valA = a.score;
-          valB = b.score;
-        }
-        if (sortOrder === "asc") return valA - valB;
-        return valB - valA;
+  const handleCreateReview = async () => {
+    if (!targetOfficer) return;
+    try {
+      setSubmittingReview(true);
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetDpsCode: targetOfficer.employeeCode,
+          priority: targetOfficer.status === "Review Required" ? "CRITICAL" : "HIGH",
+          reason: `Statutory SLA compliance (${targetOfficer.complianceRate}%) below administrative threshold with ${targetOfficer.repeatDelays} repeat delays.`,
+          sectionCited: "Assam RTPS Act 2012, Sec 7(1) & Rule 14",
+          primaryIssue: targetOfficer.recurringDelayPattern?.description || `Recurring delays in service delivery.`,
+        }),
       });
-  }, [filterMode, searchTerm, selectedDept, selectedDistrict, sortBy, sortOrder]);
 
-  const totalDpsCount = comprehensiveDpsList.length;
-  const highPerformerCount = comprehensiveDpsList.filter((d) => d.score >= 90).length;
-  const reviewCount = comprehensiveDpsList.filter((d) => d.score < 80).length;
+      if (res.ok) {
+        const data = await res.json();
+        setReviewSuccessMessage(`Review Case ${data.caseRef} successfully created in PostgreSQL!`);
+        setTimeout(() => {
+          setReviewDialogOpen(false);
+          setReviewSuccessMessage("");
+        }, 2000);
+      }
+    } catch (e) {
+      console.error("Error creating review:", e);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  // Filtered DPS list
+  const filteredList = useMemo(() => {
+    return dpsList.filter((dps) => {
+      if (selectedDept !== "all" && dps.department !== selectedDept) return false;
+      if (selectedDistrict !== "all" && dps.district !== selectedDistrict) return false;
+      if (selectedStatus !== "all" && dps.status !== selectedStatus) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          dps.name.toLowerCase().includes(q) ||
+          dps.employeeCode.toLowerCase().includes(q) ||
+          dps.office.toLowerCase().includes(q) ||
+          dps.designation.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    }).sort((a, b) => {
+      if (sortBy === "score") return b.performanceScore - a.performanceScore;
+      if (sortBy === "compliance") return b.complianceRate - a.complianceRate;
+      if (sortBy === "volume") return b.volume - a.volume;
+      if (sortBy === "breaches") return b.breaches - a.breaches;
+      return 0;
+    });
+  }, [dpsList, selectedDept, selectedDistrict, selectedStatus, searchQuery, sortBy]);
+
+  // Chronic officers with recurring delay patterns
+  const chronicOfficers = useMemo(() => {
+    return dpsList.filter((d) => d.recurringDelayPattern?.detected);
+  }, [dpsList]);
+
+  const departments = useMemo(() => ["all", ...Array.from(new Set(dpsList.map((d) => d.department)))], [dpsList]);
+  const districts = useMemo(() => ["all", ...Array.from(new Set(dpsList.map((d) => d.district)))], [dpsList]);
 
   return (
-    <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto space-y-5">
+    <div className="py-5 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto space-y-6">
       <PageHeader
-        title="DPS Performance Intelligence"
-        subtitle="Continuous monitoring of Designated Public Servants (DPS) under the Assam Right to Public Services Act, 2012"
+        title="Designated Public Servants (DPS) Directory & Accountability"
+        subtitle="Individual officer performance index, statutory breach tracking & recurring delay detection"
       >
         <div className="flex items-center gap-2">
           <Button
+            variant="outline"
             size="sm"
-            variant={filterMode === "all" ? "default" : "outline"}
-            className={filterMode === "all" ? "bg-[#0f3443] text-white text-xs" : "text-xs bg-white text-slate-700 border-slate-300"}
-            onClick={() => setFilterMode("all")}
+            onClick={fetchDpsOfficers}
+            disabled={loading}
+            className="border-slate-300 text-xs font-semibold text-[#0f3443] flex items-center gap-1.5"
           >
-            All Officers ({totalDpsCount})
-          </Button>
-          <Button
-            size="sm"
-            variant={filterMode === "high" ? "default" : "outline"}
-            className={filterMode === "high" ? "bg-[#16803c] text-white text-xs" : "text-xs bg-white text-[#16803c] border-green-300 hover:bg-green-50"}
-            onClick={() => setFilterMode("high")}
-          >
-            <Award className="w-3.5 h-3.5 mr-1" />
-            High Performers ({highPerformerCount})
-          </Button>
-          <Button
-            size="sm"
-            variant={filterMode === "review" ? "default" : "outline"}
-            className={filterMode === "review" ? "bg-[#c62828] text-white text-xs" : "text-xs bg-white text-red-700 border-red-300 hover:bg-red-50"}
-            onClick={() => setFilterMode("review")}
-          >
-            <ShieldAlert className="w-3.5 h-3.5 mr-1" />
-            Review Required ({reviewCount})
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh DPS Metrics
           </Button>
         </div>
       </PageHeader>
 
-      {/* Operational Summary Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-md p-3.5 shadow-2xs">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Monitored Officers</p>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold text-slate-900">{totalDpsCount}</span>
-            <span className="text-[11px] text-slate-500">Designated DPS</span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-green-200 bg-green-50/20 rounded-md p-3.5 shadow-2xs">
-          <p className="text-[10px] font-bold text-green-800 uppercase tracking-wider">Commendation Candidates</p>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold text-[#16803c]">{highPerformerCount}</span>
-            <span className="text-[11px] text-green-700 font-medium">&gt;90% SLA Adherence</span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-red-200 bg-red-50/25 rounded-md p-3.5 shadow-2xs">
-          <p className="text-[10px] font-bold text-red-800 uppercase tracking-wider">Review Cases Active</p>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold text-[#C62828]">{reviewCount}</span>
-            <span className="text-[11px] text-red-700 font-medium">&lt;80% SLA Threshold</span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-md p-3.5 shadow-2xs">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Zero-Delay Officers</p>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold text-[#1464A5]">
-              {comprehensiveDpsList.filter((d) => d.repeatDelays === 0).length}
-            </span>
-            <span className="text-[11px] text-slate-500">Clean delivery record</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Drilldown Banner if active */}
-      {filterMode === "high" && (
-        <div className="bg-[#e8f5ec] border border-[#b9e4c5] p-3 rounded flex items-center justify-between gap-3 text-xs text-[#16803c]">
-          <div className="flex items-center gap-2">
-            <Award className="w-4 h-4 text-[#16803c] flex-shrink-0" />
-            <span>
-              <strong>Drilldown Mode:</strong> Displaying consistently high-performing Designated Public Servants eligible for annual ARTPS commendation citations.
+      {/* RECURRING DELAY DETECTION SPOTLIGHT (Requirement 8) */}
+      {chronicOfficers.length > 0 && (
+        <div className="bg-red-50 border border-red-300 rounded-md p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-red-600 animate-pulse" />
+              <h3 className="text-sm font-bold text-red-950 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+                Algorithmic Recurring Delay Pattern Detected
+              </h3>
+            </div>
+            <span className="text-xs font-bold text-red-800 bg-red-100 px-2 py-0.5 rounded border border-red-200">
+              {chronicOfficers.length} Officers Flagged by SLA Engine
             </span>
           </div>
-          <button
-            onClick={() => setFilterMode("all")}
-            className="flex items-center gap-1 font-semibold text-green-900 bg-green-200/60 px-2 py-0.5 rounded hover:bg-green-300"
-          >
-            Reset <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
+          <p className="text-xs text-red-900 leading-relaxed">
+            The SLA Engine has analyzed application stage transitions across 530+ records and isolated systemic, repetitive stage stalls rather than one-off delays:
+          </p>
 
-      {filterMode === "review" && (
-        <div className="bg-[#fde8e8] border border-[#f5b5b5] p-3 rounded flex items-center justify-between gap-3 text-xs text-[#C62828]">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-[#C62828] flex-shrink-0" />
-            <span>
-              <strong>Administrative Attention Mode:</strong> Displaying officers falling below statutory SLA thresholds (&lt;80%) or recording repeated procedural delays.
-            </span>
-          </div>
-          <button
-            onClick={() => setFilterMode("all")}
-            className="flex items-center gap-1 font-semibold text-red-900 bg-red-200/60 px-2 py-0.5 rounded hover:bg-red-300"
-          >
-            Reset <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
-
-      {/* Search & Filter Toolbar */}
-      <div className="bg-white border border-slate-200 rounded-md p-3 shadow-2xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by Officer Name, DPS ID (e.g. DPS-021), Circle, or District..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50/50 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-[#1464A5] focus:bg-white"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Department */}
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1464A5]"
-          >
-            <option value="all">All Departments</option>
-            {departments.map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
-              </option>
-            ))}
-          </select>
-
-          {/* District */}
-          <select
-            value={selectedDistrict}
-            onChange={(e) => setSelectedDistrict(e.target.value)}
-            className="text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1464A5]"
-          >
-            <option value="all">All Districts</option>
-            {districts.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="text-xs bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1464A5]"
-          >
-            <option value="score">Sort: Index Score</option>
-            <option value="compliance">Sort: SLA Compliance %</option>
-            <option value="applications">Sort: Caseload Volume</option>
-            <option value="repeat">Sort: Repeat Delays</option>
-          </select>
-
-          <button
-            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            className="p-1.5 text-xs bg-white border border-slate-300 rounded hover:bg-slate-50 text-slate-600"
-            title={`Switch to ${sortOrder === "asc" ? "Descending" : "Ascending"}`}
-          >
-            <ArrowUpDown className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main DPS Table */}
-      <div className="border border-slate-200 rounded-md bg-white shadow-2xs overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-[#EEF6FA] hover:bg-[#EEF6FA]">
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider py-3">DPS ID & Officer Name</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Department</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Circle Office & District</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-right">Applications</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-right">SLA Compliance</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-right">Avg TAT</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-right">Repeat Delays</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-center">Score</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Status</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredDps.map((dps) => (
-              <TableRow key={dps.id} className="hover:bg-[#F7F9FB] transition-colors border-b border-slate-100">
-                <TableCell className="py-2.5">
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-bold text-[#1464A5] font-mono leading-tight">{dps.id}</span>
-                    <span className="text-xs font-bold text-slate-900">{dps.name}</span>
-                    <span className="text-[10px] text-slate-500">{dps.designation}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {chronicOfficers.slice(0, 3).map((dps) => (
+              <div key={dps.dpsId} className="bg-white border border-red-200 rounded p-3 text-xs space-y-2 shadow-2xs">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-mono font-bold text-red-700">{dps.employeeCode}</span>
+                    <h4 className="font-bold text-slate-900">{dps.name}</h4>
+                    <p className="text-[11px] text-slate-500">{dps.office} ({dps.district})</p>
                   </div>
-                </TableCell>
-                <TableCell className="text-xs text-slate-700 font-medium">{dps.department}</TableCell>
-                <TableCell className="text-xs text-slate-600">
-                  <div className="flex flex-col">
-                    <span>{dps.office}</span>
-                    <span className="text-[10px] text-slate-400">{dps.district} District</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs text-right text-slate-900 font-mono font-medium">
-                  {dps.applications.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-xs text-right font-mono font-bold">
-                  <div className="flex flex-col items-end">
-                    <span
-                      className={
-                        dps.compliance >= 90
-                          ? "text-[#16803c]"
-                          : dps.compliance < 75
-                          ? "text-[#C62828]"
-                          : "text-[#d97706]"
-                      }
-                    >
-                      {dps.compliance}%
-                    </span>
-                    <div className="w-14 bg-slate-100 rounded-full h-1 mt-0.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          dps.compliance >= 90
-                            ? "bg-[#16803c]"
-                            : dps.compliance < 75
-                            ? "bg-[#C62828]"
-                            : "bg-[#d97706]"
-                        }`}
-                        style={{ width: `${dps.compliance}%` }}
-                      />
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs text-right text-slate-600 font-mono">{dps.avgTat} days</TableCell>
-                <TableCell className="text-xs text-right">
-                  {dps.repeatDelays > 0 ? (
-                    <span
-                      className={`inline-flex items-center gap-1 font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
-                        dps.repeatDelays > 10
-                          ? "text-[#C62828] bg-red-50 border border-red-200"
-                          : "text-[#d97706] bg-amber-50 border border-amber-200"
-                      }`}
-                    >
-                      <AlertTriangle className="w-2.5 h-2.5" />
-                      {dps.repeatDelays} cases
-                    </span>
-                  ) : (
-                    <span className="text-[#16803c] font-semibold text-xs font-mono">0 (Zero)</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <span
-                    className={`inline-flex items-center justify-center w-9 h-6 text-xs font-bold border rounded font-mono ${getScoreStyle(
-                      dps.score
-                    )}`}
-                  >
-                    {dps.score}
+                  <span className="bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded text-[10px]">
+                    {dps.complianceRate}% SLA
                   </span>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={dps.status} compact />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Link
-                    href={`/dps/${dps.id}`}
-                    className="inline-flex items-center px-2 py-1 text-xs bg-white text-[#1464A5] border border-[#1464A5]/30 hover:bg-[#EEF6FA] font-semibold rounded transition-colors"
-                  >
-                    Dossier <ChevronRight className="w-3 h-3 ml-0.5" />
-                  </Link>
-                </TableCell>
-              </TableRow>
+                </div>
+
+                <div className="bg-slate-50 p-2 rounded border border-slate-200 space-y-1 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Breaches / Repeat Delays:</span>
+                    <span className="font-bold text-red-700">{dps.breaches} / {dps.repeatDelays}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Most Common Delay Stage:</span>
+                    <span className="font-bold text-slate-800">{dps.recurringDelayPattern?.mostCommonDelayStage}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Affected Service:</span>
+                    <span className="font-bold text-slate-800">{dps.recurringDelayPattern?.affectedService}</span>
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  className="w-full bg-red-700 hover:bg-red-800 text-white text-xs h-7 font-semibold"
+                  onClick={() => {
+                    setTargetOfficer(dps);
+                    setReviewDialogOpen(true);
+                  }}
+                >
+                  <ShieldAlert className="w-3 h-3 mr-1" />
+                  Initiate Administrative Review
+                </Button>
+              </div>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        </div>
+      )}
+
+      {/* FILTERS & SEARCH */}
+      <div className="bg-white border border-slate-200 rounded-md p-4 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <Input
+              placeholder="Search DPS Officer by Name, Code, Office, Designation..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-slate-50 border-slate-300 text-xs text-slate-800 h-9"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs">
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Department</label>
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
+            >
+              {departments.map((d) => (
+                <option key={d} value={d}>{d === "all" ? "All Departments" : d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">District</label>
+            <select
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
+            >
+              {districts.map((d) => (
+                <option key={d} value={d}>{d === "all" ? "All Districts" : d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Status Tier</label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
+            >
+              <option value="all">All Status Tiers</option>
+              <option value="Excellent">Excellent (≥95%)</option>
+              <option value="Strong">Strong (85-94%)</option>
+              <option value="Attention">Attention (75-84%)</option>
+              <option value="Review Required">Review Required (&lt;75%)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Sort Metric</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
+            >
+              <option value="score">Performance Score (0-100)</option>
+              <option value="compliance">SLA Compliance Rate</option>
+              <option value="volume">Applications Volume</option>
+              <option value="breaches">Total Breaches</option>
+            </select>
+          </div>
+        </div>
       </div>
+
+      {/* DPS TABLE (Requirement 7) */}
+      <div className="bg-white border border-slate-200 rounded-md shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-slate-50 border-b border-slate-200">
+              <TableRow>
+                <TableHead className="text-slate-700 font-bold text-xs py-3">DPS Code & Officer</TableHead>
+                <TableHead className="text-slate-700 font-bold text-xs">Office & Department</TableHead>
+                <TableHead className="text-right text-slate-700 font-bold text-xs">Volume</TableHead>
+                <TableHead className="text-right text-slate-700 font-bold text-xs">SLA Compliance</TableHead>
+                <TableHead className="text-right text-slate-700 font-bold text-xs">Avg TAT</TableHead>
+                <TableHead className="text-right text-slate-700 font-bold text-xs">Breaches / Delays</TableHead>
+                <TableHead className="text-center text-slate-700 font-bold text-xs">Performance Score</TableHead>
+                <TableHead className="text-center text-slate-700 font-bold text-xs">Status</TableHead>
+                <TableHead className="text-right text-slate-700 font-bold text-xs">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-100 text-xs">
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="w-5 h-5 mx-auto animate-spin text-[#1464A5] mb-2" />
+                    Calculating DPS metrics from PostgreSQL...
+                  </TableCell>
+                </TableRow>
+              ) : filteredList.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-12 text-center text-slate-500">
+                    No DPS officers match your search/filter criteria.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredList.map((dps) => (
+                  <TableRow key={dps.dpsId} className="hover:bg-slate-50 transition-colors">
+                    {/* DPS Officer */}
+                    <TableCell>
+                      <div className="font-mono font-bold text-slate-900">{dps.employeeCode}</div>
+                      <div className="font-semibold text-[#0f3443]">{dps.name}</div>
+                      <div className="text-[10px] text-slate-500">{dps.designation}</div>
+                    </TableCell>
+
+                    {/* Office */}
+                    <TableCell>
+                      <div className="font-medium text-slate-800">{dps.office}</div>
+                      <div className="text-[10px] text-slate-500">{dps.district} • {dps.department}</div>
+                    </TableCell>
+
+                    {/* Volume */}
+                    <TableCell className="text-right font-mono font-medium text-slate-800">
+                      {dps.volume}
+                    </TableCell>
+
+                    {/* Compliance */}
+                    <TableCell className="text-right">
+                      <span
+                        className={`font-mono font-bold text-xs ${
+                          dps.complianceRate >= 95
+                            ? "text-[#16803c]"
+                            : dps.complianceRate >= 80
+                            ? "text-blue-700"
+                            : "text-[#c62828]"
+                        }`}
+                      >
+                        {dps.complianceRate}%
+                      </span>
+                    </TableCell>
+
+                    {/* TAT */}
+                    <TableCell className="text-right font-mono text-slate-600">
+                      {dps.avgTat}d
+                    </TableCell>
+
+                    {/* Breaches & Delays */}
+                    <TableCell className="text-right font-mono">
+                      <span className={dps.breaches > 0 ? "text-red-600 font-bold" : "text-slate-400"}>
+                        {dps.breaches}
+                      </span>
+                      <span className="text-slate-400 text-[10px]"> / {dps.repeatDelays}</span>
+                    </TableCell>
+
+                    {/* Score (0-100) */}
+                    <TableCell className="text-center font-mono">
+                      <span className="inline-block bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-xs">
+                        {dps.performanceScore} / 100
+                      </span>
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell className="text-center">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                          dps.status === "Excellent"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : dps.status === "Strong"
+                            ? "bg-blue-100 text-blue-800"
+                            : dps.status === "Attention"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {dps.status}
+                      </span>
+                    </TableCell>
+
+                    {/* Action */}
+                    <TableCell className="text-right">
+                      {dps.urgentAction || dps.status === "Review Required" ? (
+                        <Button
+                          size="sm"
+                          className="bg-red-700 hover:bg-red-800 text-white text-[11px] h-7 px-2.5 font-semibold"
+                          onClick={() => {
+                            setTargetOfficer(dps);
+                            setReviewDialogOpen(true);
+                          }}
+                        >
+                          Review Case
+                        </Button>
+                      ) : dps.eligibleForCommendation ? (
+                        <Link
+                          href="/recognition"
+                          className="inline-flex items-center text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
+                        >
+                          <Award className="w-3 h-3 mr-1" /> Commend
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/sla-monitor?dps=${dps.employeeCode}`}
+                          className="text-xs text-[#1464A5] hover:underline font-medium"
+                        >
+                          View Apps
+                        </Link>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* CREATE REVIEW DIALOG */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-md bg-white p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-red-950 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-red-600" />
+              Initiate Administrative Review
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              This will create a formal review record in PostgreSQL under Assam RTPS Act 2012.
+            </DialogDescription>
+          </DialogHeader>
+
+          {targetOfficer && (
+            <div className="space-y-4 py-2 text-xs">
+              <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900">{targetOfficer.name} ({targetOfficer.employeeCode})</div>
+                <div className="text-slate-600">{targetOfficer.designation} • {targetOfficer.office}</div>
+                <div className="text-red-700 font-mono font-semibold">
+                  Compliance: {targetOfficer.complianceRate}% • Breaches: {targetOfficer.breaches} • Repeat Delays: {targetOfficer.repeatDelays}
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Section Cited</label>
+                <input
+                  type="text"
+                  readOnly
+                  value="Assam RTPS Act 2012, Sec 7(1) & Rule 14"
+                  className="w-full bg-slate-100 border border-slate-200 rounded p-2 text-slate-700 text-xs font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Primary Issue Identified</label>
+                <p className="bg-red-50 text-red-900 border border-red-200 rounded p-2 text-xs">
+                  {targetOfficer.recurringDelayPattern?.description ||
+                    `Systemic pendency below 75% threshold with ${targetOfficer.repeatDelays} repeat delays.`}
+                </p>
+              </div>
+
+              {reviewSuccessMessage && (
+                <div className="p-2.5 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded font-semibold text-center">
+                  {reviewSuccessMessage}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReviewDialogOpen(false)}
+              disabled={submittingReview}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateReview}
+              disabled={submittingReview || !!reviewSuccessMessage}
+              className="bg-red-700 hover:bg-red-800 text-white text-xs font-semibold"
+            >
+              {submittingReview ? "Saving to PostgreSQL..." : "Confirm & Save Case"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-export default function DPSPerformance() {
+export default function DPSPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading DPS Performance...</div>}>
-      <DPSPerformanceContent />
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading DPS Directory...</div>}>
+      <DPSContent />
     </Suspense>
   );
 }

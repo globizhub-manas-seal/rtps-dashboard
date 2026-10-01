@@ -1,15 +1,15 @@
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { mockData } from "@/lib/data";
 import {
   Search, Filter, AlertTriangle, ArrowRight, UserCheck, ShieldAlert,
-  X, Clock, Calendar, CheckCircle2, AlertCircle, ArrowUpDown, ChevronLeft, ChevronRight
+  X, Clock, Calendar, CheckCircle2, AlertCircle, ArrowUpDown, ChevronLeft, ChevronRight,
+  Database, RefreshCw, FileText
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Progress } from "@/components/ui/progress";
@@ -18,626 +18,634 @@ import { StatusBadge } from "@/components/ui/status-badge";
 
 function SLAMonitorContent() {
   const searchParams = useSearchParams();
-  const filterParam = searchParams.get("filter");
-  const initialTab = filterParam === "at-risk" ? "At Risk" : "All";
+  const initialStatus = searchParams.get("status") || "all";
 
   // State
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [activeTab, setActiveTab] = useState<string>(initialStatus);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedDept, setSelectedDept] = useState<string>("All");
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("All");
-  const [selectedOffice, setSelectedOffice] = useState<string>("All");
-  const [selectedService, setSelectedService] = useState<string>("All");
-  const [sortBy, setSortBy] = useState<string>(filterParam === "at-risk" ? "urgency" : "consumed-desc");
+  const [selectedDept, setSelectedDept] = useState<string>("all");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("all");
+  const [selectedOffice, setSelectedOffice] = useState<string>("all");
+  const [selectedService, setSelectedService] = useState<string>("all");
+  const [selectedDps, setSelectedDps] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("slaConsumed"); // slaConsumed, dueDate, submissionDate
+  const [sortOrder, setSortOrder] = useState<string>("desc");
+
+  const [applications, setApplications] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [selectedApp, setSelectedApp] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [timeline, setTimeline] = useState<any[]>([]);
 
-  // Status Counts for Summary Strip
+  // Fetch applications from PostgreSQL API
+  const fetchApplications = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) params.append("search", searchQuery.trim());
+      if (selectedDept !== "all") params.append("department", selectedDept);
+      if (selectedDistrict !== "all") params.append("district", selectedDistrict);
+      if (selectedOffice !== "all") params.append("office", selectedOffice);
+      if (selectedService !== "all") params.append("service", selectedService);
+      if (selectedDps !== "all") params.append("dps", selectedDps);
+      if (activeTab !== "all") params.append("status", activeTab);
+      params.append("sortBy", sortBy);
+      params.append("sortOrder", sortOrder);
+      params.append("limit", "150");
+
+      const res = await fetch(`/api/applications?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setApplications(data.applications || []);
+      }
+    } catch (err) {
+      console.error("Failed to load applications:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications();
+  }, [activeTab, selectedDept, selectedDistrict, selectedOffice, selectedService, selectedDps, sortBy, sortOrder]);
+
+  // Handle Search on Submit
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchApplications();
+  };
+
+  // Status counts from loaded data
   const statusCounts = useMemo(() => {
-    const counts = { total: 0, onTrack: 0, atRisk: 0, critical: 0, breached: 0 };
-    mockData.applications.forEach((app) => {
-      counts.total++;
-      if (app.status === "On Track") counts.onTrack++;
-      else if (app.status === "At Risk") counts.atRisk++;
-      else if (app.status === "Critical") counts.critical++;
-      else if (app.status === "Breached") counts.breached++;
+    const counts = { total: applications.length, onTrack: 0, atRisk: 0, critical: 0, breached: 0 };
+    applications.forEach((a) => {
+      if (a.slaStatus === "ON_TRACK") counts.onTrack++;
+      else if (a.slaStatus === "AT_RISK") counts.atRisk++;
+      else if (a.slaStatus === "CRITICAL") counts.critical++;
+      else if (a.slaStatus === "BREACHED") counts.breached++;
     });
     return counts;
-  }, []);
+  }, [applications]);
 
-  // Filtered and Sorted Applications
-  const filteredApps = useMemo(() => {
-    return mockData.applications
-      .filter((app) => {
-        // Tab Filter
-        if (activeTab === "On Track" && app.status !== "On Track") return false;
-        if (activeTab === "At Risk" && app.status !== "At Risk") return false;
-        if (activeTab === "Critical" && app.status !== "Critical") return false;
-        if (activeTab === "Breached" && app.status !== "Breached") return false;
+  // Click on Application to open detail drawer
+  const handleAppClick = async (app: any) => {
+    setSelectedApp(app);
+    setIsDrawerOpen(true);
+    try {
+      const res = await fetch(`/api/applications/${app.rtpsRefNo}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTimeline(data.timeline || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch app details:", e);
+    }
+  };
 
-        // Dropdowns
-        if (selectedDept !== "All" && app.department !== selectedDept) return false;
-        if (selectedDistrict !== "All" && app.district !== selectedDistrict) return false;
-        if (selectedOffice !== "All" && app.office !== selectedOffice) return false;
-        if (selectedService !== "All" && app.service !== selectedService) return false;
+  // Unique options for filters from loaded list
+  const departments = useMemo(() => {
+    const list = Array.from(new Set(applications.map((a) => a.departmentCode))).filter(Boolean);
+    return ["all", ...list];
+  }, [applications]);
 
-        // Search Query
-        if (searchQuery.trim() !== "") {
-          const q = searchQuery.toLowerCase();
-          const matchId = app.id.toLowerCase().includes(q);
-          const matchService = app.service.toLowerCase().includes(q);
-          const matchDps = app.dps.toLowerCase().includes(q);
-          const matchOffice = app.office.toLowerCase().includes(q);
-          const matchCitizen = app.citizen.toLowerCase().includes(q);
-          if (!matchId && !matchService && !matchDps && !matchOffice && !matchCitizen) return false;
-        }
+  const districts = useMemo(() => {
+    const list = Array.from(new Set(applications.map((a) => a.districtName))).filter(Boolean);
+    return ["all", ...list];
+  }, [applications]);
 
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === "consumed-desc") return b.consumed - a.consumed;
-        if (sortBy === "urgency") return a.hoursRemaining - b.hoursRemaining;
-        if (sortBy === "dept") return a.department.localeCompare(b.department);
-        if (sortBy === "dps") return a.dps.localeCompare(b.dps);
-        return 0;
-      });
-  }, [activeTab, selectedDept, selectedDistrict, selectedOffice, selectedService, searchQuery, sortBy]);
-
-  // Unique Dropdown Options
-  const departments = useMemo(() => ["All", ...Array.from(new Set(mockData.applications.map((a) => a.department)))], []);
-  const districts = useMemo(() => ["All", ...Array.from(new Set(mockData.applications.map((a) => a.district)))], []);
-  const offices = useMemo(() => ["All", ...Array.from(new Set(mockData.applications.map((a) => a.office)))], []);
-  const services = useMemo(() => ["All", ...Array.from(new Set(mockData.applications.map((a) => a.service)))], []);
+  const services = useMemo(() => {
+    const list = Array.from(new Set(applications.map((a) => a.serviceCode))).filter(Boolean);
+    return ["all", ...list];
+  }, [applications]);
 
   const clearAllFilters = () => {
-    setActiveTab("All");
-    setSelectedDept("All");
-    setSelectedDistrict("All");
-    setSelectedOffice("All");
-    setSelectedService("All");
+    setActiveTab("all");
+    setSelectedDept("all");
+    setSelectedDistrict("all");
+    setSelectedOffice("all");
+    setSelectedService("all");
+    setSelectedDps("all");
     setSearchQuery("");
-    setSortBy("consumed-desc");
+    setSortBy("slaConsumed");
+    setSortOrder("desc");
   };
 
   return (
-    <div className="py-5 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto space-y-4">
-      {/* Page Header */}
+    <div className="py-5 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto space-y-5">
+      {/* Header */}
       <PageHeader
-        title="Live SLA Monitor"
-        subtitle="Continuous monitoring of RTPS citizen applications against statutory turnaround deadlines"
+        title="Statutory SLA Compliance Monitor"
+        subtitle="Real-time pendency tracking & breach risk detection across Assam RTPS public services"
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded font-medium shadow-2xs">
-            Last synchronized: <strong className="text-slate-800">10:05 AM</strong> • <strong>{statusCounts.total} active SLA cases</strong>
-          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchApplications}
+            disabled={loading}
+            className="border-slate-300 text-xs font-semibold text-[#0f3443] flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh PostgreSQL Feed
+          </Button>
         </div>
       </PageHeader>
 
-      {/* 1. Compact Operational Summary Row Above Search */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+      {/* SUMMARY STATUS METRIC STRIP */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <button
-          onClick={() => setActiveTab("All")}
-          className={`p-2.5 rounded border text-left transition-all ${
-            activeTab === "All"
-              ? "bg-[#0f3443] text-white border-[#0f3443] shadow-xs ring-1 ring-[#0f3443]"
-              : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
+          onClick={() => setActiveTab("all")}
+          className={`p-3 rounded-md border text-left transition-all ${
+            activeTab === "all" ? "bg-white border-[#1464A5] ring-2 ring-[#1464A5]/20 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">ALL CASES</span>
-            <span className="text-base font-bold font-mono">{statusCounts.total}</span>
-          </div>
-          <span className="text-[10px] opacity-70 block mt-0.5">Active Queue</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">All Monitored</span>
+          <span className="text-xl font-bold font-mono text-slate-900 mt-0.5 block">{statusCounts.total}</span>
+          <span className="text-[10px] text-slate-400 mt-1 block">Live applications in view</span>
         </button>
 
         <button
-          onClick={() => setActiveTab("On Track")}
-          className={`p-2.5 rounded border text-left transition-all ${
-            activeTab === "On Track"
-              ? "bg-[#16803c] text-white border-[#16803c] shadow-xs ring-1 ring-[#16803c]"
-              : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
+          onClick={() => setActiveTab("ON_TRACK")}
+          className={`p-3 rounded-md border text-left transition-all ${
+            activeTab === "ON_TRACK" ? "bg-emerald-50/60 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-green-700">ON TRACK</span>
-            <span className="text-base font-bold font-mono text-[#16803c]">{statusCounts.onTrack}</span>
-          </div>
-          <span className="text-[10px] text-slate-500 block mt-0.5">&lt;75% SLA Consumed</span>
+          <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#16803c]" /> On Track
+          </span>
+          <span className="text-xl font-bold font-mono text-emerald-950 mt-0.5 block">{statusCounts.onTrack}</span>
+          <span className="text-[10px] text-emerald-700 mt-1 block">&gt; 48 hours remaining</span>
         </button>
 
         <button
-          onClick={() => { setActiveTab("At Risk"); setSortBy("urgency"); }}
-          className={`p-2.5 rounded border text-left transition-all ${
-            activeTab === "At Risk"
-              ? "bg-[#d97706] text-white border-[#d97706] shadow-xs ring-1 ring-[#d97706]"
-              : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
+          onClick={() => setActiveTab("AT_RISK")}
+          className={`p-3 rounded-md border text-left transition-all ${
+            activeTab === "AT_RISK" ? "bg-amber-50/60 border-amber-500 ring-2 ring-amber-500/20 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">AT RISK</span>
-            <span className="text-base font-bold font-mono text-amber-600">{statusCounts.atRisk}</span>
-          </div>
-          <span className="text-[10px] text-slate-500 block mt-0.5">Due in &lt;24h (Priority)</span>
+          <span className="text-[11px] font-semibold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500" /> At Risk
+          </span>
+          <span className="text-xl font-bold font-mono text-amber-950 mt-0.5 block">{statusCounts.atRisk}</span>
+          <span className="text-[10px] text-amber-700 mt-1 block">12 – 48 hours remaining</span>
         </button>
 
         <button
-          onClick={() => setActiveTab("Critical")}
-          className={`p-2.5 rounded border text-left transition-all ${
-            activeTab === "Critical"
-              ? "bg-[#ea580c] text-white border-[#ea580c] shadow-xs ring-1 ring-[#ea580c]"
-              : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
+          onClick={() => setActiveTab("CRITICAL")}
+          className={`p-3 rounded-md border text-left transition-all ${
+            activeTab === "CRITICAL" ? "bg-orange-50/60 border-orange-500 ring-2 ring-orange-500/20 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-700">CRITICAL</span>
-            <span className="text-base font-bold font-mono text-orange-600">{statusCounts.critical}</span>
-          </div>
-          <span className="text-[10px] text-slate-500 block mt-0.5">Due in &lt;6h / Imminent</span>
+          <span className="text-[11px] font-semibold text-orange-800 uppercase tracking-wide flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-orange-600" /> Critical
+          </span>
+          <span className="text-xl font-bold font-mono text-orange-950 mt-0.5 block">{statusCounts.critical}</span>
+          <span className="text-[10px] text-orange-700 mt-1 block">&lt; 12 hours remaining</span>
         </button>
 
         <button
-          onClick={() => setActiveTab("Breached")}
-          className={`p-2.5 rounded border text-left transition-all col-span-2 sm:col-span-1 ${
-            activeTab === "Breached"
-              ? "bg-[#c62828] text-white border-[#c62828] shadow-xs ring-1 ring-[#c62828]"
-              : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
+          onClick={() => setActiveTab("BREACHED")}
+          className={`p-3 rounded-md border text-left transition-all ${
+            activeTab === "BREACHED" ? "bg-red-50/60 border-red-500 ring-2 ring-red-500/20 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-red-700">BREACHED</span>
-            <span className="text-base font-bold font-mono text-[#c62828]">{statusCounts.breached}</span>
-          </div>
-          <span className="text-[10px] text-slate-500 block mt-0.5">Statutory Delay Logged</span>
+          <span className="text-[11px] font-semibold text-red-800 uppercase tracking-wide flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#c62828]" /> Breached
+          </span>
+          <span className="text-xl font-bold font-mono text-red-950 mt-0.5 block">{statusCounts.breached}</span>
+          <span className="text-[10px] text-red-700 mt-1 block">Past statutory deadline</span>
         </button>
       </div>
 
-      {/* Active Filter Notification when coming from Dashboard Drilldown */}
-      {activeTab === "At Risk" && (
-        <div className="bg-[#fff9ed] border border-amber-300 rounded p-2.5 flex items-center justify-between gap-3 text-xs text-amber-950">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <span>
-              <strong>Approaching SLA Early Warning:</strong> Displaying cases due within 24 hours. Cases sorted by <strong>urgency (shortest time remaining first)</strong>.
-            </span>
-          </div>
-          <button
-            onClick={clearAllFilters}
-            className="flex items-center gap-1 font-semibold text-amber-800 hover:text-amber-950 bg-amber-200/60 px-2 py-0.5 rounded text-[11px]"
-          >
-            Clear Filter <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
-
-      {/* 3. Search and Dropdown Filter Bar */}
-      <div className="bg-white border border-slate-200 rounded-md p-3 shadow-2xs space-y-2.5">
-        {/* Search Input Row */}
-        <div className="flex flex-col sm:flex-row gap-2">
+      {/* FILTER & SEARCH CONTROL BAR */}
+      <div className="bg-white border border-slate-200 rounded-md p-4 shadow-2xs space-y-3">
+        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <Input
+              placeholder="Search by Application ID, Citizen, DPS Officer, Service or Office..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Application ID, Service, DPS, Office, or Citizen Name..."
-              className="pl-9 bg-slate-50/50 border-slate-200 text-xs h-9"
+              className="pl-9 bg-slate-50 border-slate-300 text-xs text-slate-800 h-9"
             />
           </div>
+          <Button type="submit" size="sm" className="bg-[#0f3443] hover:bg-[#1a4d5e] text-white text-xs h-9 px-4">
+            Search
+          </Button>
+          {(searchQuery || selectedDept !== "all" || selectedDistrict !== "all" || selectedService !== "all" || activeTab !== "all") && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={clearAllFilters}
+              className="border-slate-300 text-xs h-9 text-slate-600 hover:text-red-700 flex items-center gap-1"
+            >
+              <X className="w-3.5 h-3.5" /> Clear All
+            </Button>
+          )}
+        </form>
 
-          {/* Sort By Dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 flex-shrink-0">
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-[11px] text-slate-500 font-medium">Sort:</span>
+        {/* Dropdowns Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 pt-2 border-t border-slate-100 text-xs">
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Department</label>
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
+            >
+              <option value="all">All Departments</option>
+              <option value="REV">Revenue</option>
+              <option value="TRN">Transport</option>
+              <option value="HFW">Health</option>
+              <option value="UDD">Urban Affairs</option>
+              <option value="PRD">P&RD</option>
+              <option value="WPT">WPT & BC</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">District</label>
+            <select
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
+            >
+              <option value="all">All Districts</option>
+              <option value="Kamrup Metropolitan">Kamrup Metro</option>
+              <option value="Dibrugarh">Dibrugarh</option>
+              <option value="Jorhat">Jorhat</option>
+              <option value="Sonitpur">Sonitpur</option>
+              <option value="Karimganj">Karimganj</option>
+              <option value="Cachar">Cachar</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Service</label>
+            <select
+              value={selectedService}
+              onChange={(e) => setSelectedService(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none truncate"
+            >
+              <option value="all">All Statutory Services</option>
+              <option value="INC_CERT">Income Certificate</option>
+              <option value="MUTATION">Land Mutation / Partition</option>
+              <option value="PRC_CERT">PRC Certificate</option>
+              <option value="DL_PERM">Driving License</option>
+              <option value="BIRTH_REG">Birth Certificate</option>
+              <option value="TRADE_LIC">Trade License</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Sort By</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-[#0f3443] focus:outline-none cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
             >
-              <option value="consumed-desc">SLA Consumed (Highest first)</option>
-              <option value="urgency">Urgency (Shortest time left)</option>
-              <option value="dept">Department (A-Z)</option>
-              <option value="dps">Assigned DPS</option>
+              <option value="slaConsumed">SLA Consumed %</option>
+              <option value="dueDate">Due Date</option>
+              <option value="submissionDate">Submitted Date</option>
             </select>
           </div>
-        </div>
 
-        {/* Dropdown Filters Row */}
-        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 text-xs">
-          <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mr-1">
-            <Filter className="w-3 h-3" /> Filter By:
-          </span>
-
-          {/* Department */}
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="px-2 py-1 rounded border border-slate-200 bg-white text-slate-700 text-xs font-medium focus:ring-1 focus:ring-amber-400"
-          >
-            <option value="All">Dept: All</option>
-            {departments.filter(d => d !== "All").map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-
-          {/* District */}
-          <select
-            value={selectedDistrict}
-            onChange={(e) => setSelectedDistrict(e.target.value)}
-            className="px-2 py-1 rounded border border-slate-200 bg-white text-slate-700 text-xs font-medium focus:ring-1 focus:ring-amber-400"
-          >
-            <option value="All">District: All</option>
-            {districts.filter(d => d !== "All").map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-
-          {/* Location / Office */}
-          <select
-            value={selectedOffice}
-            onChange={(e) => setSelectedOffice(e.target.value)}
-            className="px-2 py-1 rounded border border-slate-200 bg-white text-slate-700 text-xs font-medium focus:ring-1 focus:ring-amber-400"
-          >
-            <option value="All">Office: All</option>
-            {offices.filter(o => o !== "All").map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
-
-          {/* Service */}
-          <select
-            value={selectedService}
-            onChange={(e) => setSelectedService(e.target.value)}
-            className="px-2 py-1 rounded border border-slate-200 bg-white text-slate-700 text-xs font-medium focus:ring-1 focus:ring-amber-400"
-          >
-            <option value="All">Service: All</option>
-            {services.filter(s => s !== "All").map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-
-          {/* Clear Filters Reset */}
-          {(selectedDept !== "All" || selectedDistrict !== "All" || selectedOffice !== "All" || selectedService !== "All" || searchQuery !== "" || activeTab !== "All") && (
-            <button
-              onClick={clearAllFilters}
-              className="text-[11px] text-red-600 hover:text-red-800 font-semibold ml-auto flex items-center gap-1"
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">Order</label>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-slate-700 text-xs focus:outline-none"
             >
-              Reset Filters <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
+            </select>
+          </div>
 
-        {/* 4. Status Tabs Row */}
-        <div className="flex items-center gap-1 pt-1 overflow-x-auto">
-          {["All", "On Track", "At Risk", "Critical", "Breached"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1 rounded text-xs font-semibold transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? "bg-[#0f3443] text-white shadow-2xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+          <div className="flex items-end">
+            <span className="text-[11px] text-slate-500 pb-2">
+              Showing <strong>{applications.length}</strong> records
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* 9 & 10. Data Table with Clear Visual Hierarchy & Location Column */}
-      <div className="border border-slate-200 rounded-md bg-white shadow-xs overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-[#EEF6FA] hover:bg-[#EEF6FA]">
-              <TableHead className="text-[#123B4A] text-xs font-bold uppercase tracking-wider">Application ID</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-bold uppercase tracking-wider">Service</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Department</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Location</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-bold uppercase tracking-wider">Assigned DPS</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Submitted</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">SLA Limit</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-semibold uppercase tracking-wider">Due Date</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-bold uppercase tracking-wider">SLA Consumed & Urgency</TableHead>
-              <TableHead className="text-[#123B4A] text-xs font-bold uppercase tracking-wider text-right">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredApps.length === 0 ? (
+      {/* APPLICATIONS TABLE */}
+      <div className="bg-white border border-slate-200 rounded-md shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-slate-50/75 border-b border-slate-200">
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-xs text-slate-500">
-                  No active cases match the selected filters.
-                </TableCell>
+                <TableHead className="w-[170px] text-slate-700 font-bold text-xs py-3">Application Ref</TableHead>
+                <TableHead className="text-slate-700 font-bold text-xs">Service & Citizen</TableHead>
+                <TableHead className="text-slate-700 font-bold text-xs">Office & District</TableHead>
+                <TableHead className="text-slate-700 font-bold text-xs">DPS Officer</TableHead>
+                <TableHead className="text-slate-700 font-bold text-xs">Due Cut-off</TableHead>
+                <TableHead className="w-[180px] text-slate-700 font-bold text-xs">SLA Consumed</TableHead>
+                <TableHead className="text-center text-slate-700 font-bold text-xs">SLA Status</TableHead>
+                <TableHead className="text-right text-slate-700 font-bold text-xs">Action</TableHead>
               </TableRow>
-            ) : (
-              filteredApps.map((app) => (
-                <TableRow
-                  key={app.id}
-                  className="cursor-pointer hover:bg-[#F7F9FB] transition-colors border-b border-slate-100 group"
-                  onClick={() => { setSelectedApp(app); setIsDrawerOpen(true); }}
-                >
-                  {/* Primary: Application ID */}
-                  <TableCell className="font-bold text-[#1464A5] group-hover:text-[#0f3443] transition-colors text-xs font-mono">
-                    {app.id}
-                  </TableCell>
-
-                  {/* Primary: Service Name */}
-                  <TableCell className="text-xs font-bold text-[#1F2933]">
-                    {app.service}
-                  </TableCell>
-
-                  {/* Secondary: Department */}
-                  <TableCell className="text-xs text-slate-600">
-                    {app.department}
-                  </TableCell>
-
-                  {/* 10. Secondary: Location (Office) */}
-                  <TableCell className="text-xs text-slate-600">
-                    <span className="font-medium text-slate-800">{app.office}</span>
-                    <span className="text-[10px] text-slate-400 block">{app.district}</span>
-                  </TableCell>
-
-                  {/* Primary: Assigned DPS */}
-                  <TableCell className="text-xs font-bold text-slate-900">
-                    <span className="font-mono text-[#0f3443] block">{app.dps}</span>
-                    <span className="text-[10px] font-normal text-slate-500">{app.officerName}</span>
-                  </TableCell>
-
-                  {/* Secondary: Submitted Date */}
-                  <TableCell className="text-xs text-slate-500">
-                    {app.submitted}
-                  </TableCell>
-
-                  {/* Secondary: SLA Limit */}
-                  <TableCell className="text-xs text-slate-600 font-medium">
-                    {app.sla}
-                  </TableCell>
-
-                  {/* Secondary: Due Date */}
-                  <TableCell className="text-xs font-medium text-slate-800">
-                    {app.due}
-                  </TableCell>
-
-                  {/* 5 & 7. SLA Consumed with Semantic Urgency Label & Risk Indicator */}
-                  <TableCell>
-                    <div className="space-y-1 min-w-[130px]">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold font-mono text-slate-900">{app.consumed}%</span>
-                        <span
-                          className={`font-semibold text-[10px] ${
-                            app.status === "Breached"
-                              ? "text-red-700"
-                              : app.status === "Critical"
-                              ? "text-orange-700 font-bold"
-                              : app.status === "At Risk"
-                              ? "text-amber-700 font-bold"
-                              : "text-green-700"
-                          }`}
-                        >
-                          {app.urgencyLabel}
-                        </span>
-                      </div>
-                      <Progress
-                        value={Math.min(app.consumed, 100)}
-                        className={`h-2 ${
-                          app.consumed >= 100
-                            ? "[&>div]:bg-[#C62828]"
-                            : app.consumed > 90
-                            ? "[&>div]:bg-[#d97706]"
-                            : app.consumed > 75
-                            ? "[&>div]:bg-[#f59e0b]"
-                            : "[&>div]:bg-[#16803c]"
-                        }`}
-                      />
-                    </div>
-                  </TableCell>
-
-                  {/* Primary: Status Badge */}
-                  <TableCell className="text-right">
-                    <StatusBadge status={app.status} compact />
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-100 text-xs">
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="w-5 h-5 mx-auto animate-spin text-[#1464A5] mb-2" />
+                    Loading applications from PostgreSQL...
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : applications.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-12 text-center text-slate-500">
+                    No applications matching current filters found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                applications.map((app) => (
+                  <TableRow
+                    key={app.id}
+                    onClick={() => handleAppClick(app)}
+                    className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                  >
+                    {/* Ref */}
+                    <TableCell className="font-mono font-bold text-[#0f3443]">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{app.rtpsRefNo}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-normal block pl-5">
+                        Sub: {app.submissionDate?.split("T")[0]}
+                      </span>
+                    </TableCell>
 
-      {/* 15. Pagination Controls Footer */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 bg-white border border-slate-200 rounded p-2.5">
-        <span>
-          Showing <strong>1–{filteredApps.length}</strong> of <strong>{filteredApps.length}</strong> active SLA cases
-        </span>
+                    {/* Service & Citizen */}
+                    <TableCell>
+                      <div className="font-semibold text-slate-800">{app.serviceName}</div>
+                      <div className="text-[11px] text-slate-500">
+                        {app.citizenName} • SLA: {app.statutoryDays}d
+                      </div>
+                    </TableCell>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-500">Rows per page:</span>
-            <select className="border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 text-xs font-semibold">
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-            </select>
-          </div>
+                    {/* Office */}
+                    <TableCell>
+                      <div className="text-slate-800 font-medium">{app.officeName}</div>
+                      <div className="text-[10px] text-slate-500">{app.districtName}</div>
+                    </TableCell>
 
-          <div className="flex items-center gap-1">
-            <button disabled className="p-1 rounded border border-slate-200 text-slate-400 cursor-not-allowed">
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <span className="px-2 py-0.5 rounded bg-[#0f3443] text-white font-bold text-[11px]">1</span>
-            <button disabled className="p-1 rounded border border-slate-200 text-slate-400 cursor-not-allowed">
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+                    {/* DPS */}
+                    <TableCell>
+                      <div className="font-medium text-slate-800">{app.dpsName}</div>
+                      <div className="text-[10px] text-slate-500 font-mono">{app.dpsCode}</div>
+                    </TableCell>
+
+                    {/* Due */}
+                    <TableCell>
+                      <div className="font-mono text-slate-800 font-medium">{app.targetSlaDate?.split("T")[0]}</div>
+                      <div className="text-[10px] text-slate-500">
+                        {app.timeRemainingHours > 0 ? `${app.timeRemainingHours}h remaining` : "Deadline passed"}
+                      </div>
+                    </TableCell>
+
+                    {/* SLA Progress */}
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="font-mono font-bold text-slate-800">{app.slaConsumedPercent}%</span>
+                          <span className="text-slate-500 text-[10px] font-mono">
+                            {app.timeRemainingHours > 0 ? `${app.timeRemainingHours}h left` : "OVERDUE"}
+                          </span>
+                        </div>
+                        <Progress
+                          value={Math.min(app.slaConsumedPercent, 100)}
+                          className={`h-2 ${
+                            app.slaStatus === "BREACHED"
+                              ? "[&>div]:bg-[#C62828]"
+                              : app.slaStatus === "CRITICAL"
+                              ? "[&>div]:bg-[#EA580C]"
+                              : app.slaStatus === "AT_RISK"
+                              ? "[&>div]:bg-[#D97706]"
+                              : "[&>div]:bg-[#16803c]"
+                          }`}
+                        />
+                      </div>
+                    </TableCell>
+
+                    {/* Status Badge */}
+                    <TableCell className="text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                          app.slaStatus === "ON_TRACK"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : app.slaStatus === "AT_RISK"
+                            ? "bg-amber-100 text-amber-800"
+                            : app.slaStatus === "CRITICAL"
+                            ? "bg-orange-100 text-orange-800"
+                            : app.slaStatus === "BREACHED"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {app.slaStatus === "ON_TRACK" && "🟢 On Track"}
+                        {app.slaStatus === "AT_RISK" && "🟡 At Risk"}
+                        {app.slaStatus === "CRITICAL" && "🟠 Critical"}
+                        {app.slaStatus === "BREACHED" && "🔴 Breached"}
+                        {app.slaStatus === "DELIVERED" && "🔵 Delivered"}
+                      </span>
+                    </TableCell>
+
+                    {/* Action */}
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-[#1464A5] hover:text-[#0f3443] font-semibold h-7 px-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAppClick(app);
+                        }}
+                      >
+                        Inspect <ArrowRight className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
-      {/* 6 & 8. Application Detail Drawer with Delay Breakdown and DPS Drilldown */}
+      {/* APPLICATION DETAILS DRAWER */}
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-        <DrawerContent className="max-w-2xl mx-auto bg-white">
-          <DrawerHeader className="border-b border-slate-200 pb-3">
-            <div className="flex justify-between items-start gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1464A5] bg-[#eef6fa] px-2 py-0.5 rounded font-mono">
-                    {selectedApp?.id}
-                  </span>
+        <DrawerContent className="max-w-2xl mx-auto p-6 bg-white max-h-[90vh] overflow-y-auto">
+          {selectedApp && (
+            <div className="space-y-6">
+              <DrawerHeader className="p-0 pb-4 border-b border-slate-200">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Application Dossier • Assam RTPS
+                    </span>
+                    <DrawerTitle className="text-xl font-bold font-mono text-[#0f3443]">
+                      {selectedApp.rtpsRefNo}
+                    </DrawerTitle>
+                    <DrawerDescription className="text-xs text-slate-600 mt-0.5">
+                      {selectedApp.serviceName}
+                    </DrawerDescription>
+                  </div>
                   <span
-                    className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded ${
-                      selectedApp?.delayRisk === "HIGH RISK"
-                        ? "bg-amber-100 text-amber-900 border border-amber-300"
-                        : selectedApp?.delayRisk === "CRITICAL ESCALATION"
-                        ? "bg-orange-100 text-orange-900 border border-orange-300"
-                        : selectedApp?.delayRisk === "BREACHED"
-                        ? "bg-red-100 text-red-900 border border-red-300"
-                        : "bg-green-100 text-green-900 border border-green-300"
+                    className={`px-2.5 py-1 rounded text-xs font-bold ${
+                      selectedApp.slaStatus === "BREACHED"
+                        ? "bg-red-100 text-red-800"
+                        : selectedApp.slaStatus === "CRITICAL"
+                        ? "bg-orange-100 text-orange-800"
+                        : selectedApp.slaStatus === "AT_RISK"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-emerald-100 text-emerald-800"
                     }`}
                   >
-                    {selectedApp?.delayRisk}
+                    {selectedApp.slaStatus}
                   </span>
                 </div>
-                <DrawerTitle className="text-lg font-bold text-[#1F2933]">
-                  {selectedApp?.service}
-                </DrawerTitle>
-                <DrawerDescription className="text-xs text-slate-500">
-                  {selectedApp?.department} • {selectedApp?.office} ({selectedApp?.district} District)
-                </DrawerDescription>
-              </div>
+              </DrawerHeader>
 
-              {selectedApp && <StatusBadge status={selectedApp.status} />}
-            </div>
-          </DrawerHeader>
-
-          {selectedApp && (
-            <div className="p-5 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
-              {/* Core Attributes */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#fafbfc] p-3 rounded border border-slate-200">
+              {/* Administrative Assignment Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-md border border-slate-200 text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Applicant</span>
-                  <span className="font-bold text-slate-800">{selectedApp.citizen}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Department</span>
+                  <span className="font-semibold text-slate-800">{selectedApp.departmentName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Submitted Date</span>
-                  <span className="font-semibold text-slate-800">{selectedApp.submitted}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">District</span>
+                  <span className="font-semibold text-slate-800">{selectedApp.districtName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Statutory SLA</span>
-                  <span className="font-semibold text-slate-800">{selectedApp.sla}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Office</span>
+                  <span className="font-semibold text-slate-800">{selectedApp.officeName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Due Cut-off</span>
-                  <span className="font-bold text-[#0f3443]">{selectedApp.due}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">DPS Officer</span>
+                  <span className="font-semibold text-[#0f3443]">{selectedApp.dpsName}</span>
+                  <span className="block text-[10px] text-slate-500 font-mono">({selectedApp.dpsCode})</span>
                 </div>
               </div>
 
-              {/* SLA Consumed & Urgency Progress */}
-              <div className="bg-[#EEF6FA] p-3.5 rounded border border-[#cfe2ec] space-y-2">
-                <div className="flex justify-between items-center text-xs font-semibold text-[#123B4A]">
-                  <span>SLA Consumed: <strong>{selectedApp.consumed}%</strong></span>
-                  <span className="font-bold text-[#0f3443]">
-                    {selectedApp.hoursRemaining > 0
-                      ? `${selectedApp.hoursRemaining} hours remaining`
-                      : `${Math.abs(selectedApp.hoursRemaining)} hours overdue`}
-                  </span>
-                </div>
-                <Progress
-                  value={Math.min(selectedApp.consumed, 100)}
-                  className={`h-2.5 ${
-                    selectedApp.consumed >= 100
-                      ? "[&>div]:bg-[#C62828]"
-                      : selectedApp.consumed > 85
-                      ? "[&>div]:bg-[#d97706]"
-                      : "[&>div]:bg-[#16803c]"
-                  }`}
-                />
-                <p className="text-[11px] text-slate-600">
-                  Delay Factor: <em>{selectedApp.reason}</em>
-                </p>
-              </div>
-
-              {/* 8. Potential Delay Reason Breakdown */}
-              <div className="bg-white border border-slate-200 rounded p-3 space-y-2.5">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                    Potential Delay Reason Attribution
-                  </h4>
-                  <span className="text-[10px] text-slate-400">Algorithmic Stage Audit</span>
-                </div>
-
-                <div className="space-y-2">
+              {/* Dates & SLA Consumed Bar */}
+              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <div className="flex justify-between text-[11px] mb-1">
-                      <span className="text-slate-700 font-medium">Document Scrutiny / Field Verification</span>
-                      <span className="font-bold font-mono text-slate-900">{selectedApp.delayBreakdown?.verification}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-[#1464A5] h-full rounded-full" style={{ width: `${selectedApp.delayBreakdown?.verification}%` }} />
-                    </div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Submission Date</span>
+                    <span className="font-semibold text-slate-800">{selectedApp.submissionDate?.split("T")[0]}</span>
                   </div>
-
                   <div>
-                    <div className="flex justify-between text-[11px] mb-1">
-                      <span className="text-slate-700 font-medium">Applicant Response / Document Re-submission</span>
-                      <span className="font-bold font-mono text-slate-900">{selectedApp.delayBreakdown?.applicant}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-[#f59e0b] h-full rounded-full" style={{ width: `${selectedApp.delayBreakdown?.applicant}%` }} />
-                    </div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Statutory SLA</span>
+                    <span className="font-semibold text-slate-800">{selectedApp.statutoryDays} Calendar Days</span>
                   </div>
-
                   <div>
-                    <div className="flex justify-between text-[11px] mb-1">
-                      <span className="text-slate-700 font-medium">Technical Integration / Digital Token Gateway</span>
-                      <span className="font-bold font-mono text-slate-900">{selectedApp.delayBreakdown?.technical}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-slate-400 h-full rounded-full" style={{ width: `${selectedApp.delayBreakdown?.technical}%` }} />
-                    </div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Due Cut-off Date</span>
+                    <span className="font-bold text-[#0f3443]">{selectedApp.targetSlaDate?.split("T")[0]}</span>
                   </div>
                 </div>
-              </div>
 
-              {/* 6. ASSIGNED DPS DRILLDOWN ACTION CARD */}
-              <div className="p-3.5 rounded-md border border-amber-300 bg-amber-50/70 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
-                    <UserCheck className="w-3.5 h-3.5" /> Assigned Designated Public Servant (DPS)
-                  </span>
-                  <h4 className="text-sm font-bold text-slate-900">
-                    {selectedApp.dps} — {selectedApp.officerName}
-                  </h4>
-                  <p className="text-[11px] text-slate-600">
-                    {selectedApp.office} ({selectedApp.district}) • Historical SLA: 71%
-                  </p>
+                <div className="space-y-1.5 pt-2 border-t border-slate-200">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-slate-700">
+                      SLA Consumed: <strong>{selectedApp.slaConsumedPercent}%</strong>
+                    </span>
+                    <span className="text-[#0f3443] font-bold">
+                      {selectedApp.timeRemainingHours > 0
+                        ? `${selectedApp.timeRemainingHours} Hours Remaining`
+                        : "Statutory Deadline Exceeded"}
+                    </span>
+                  </div>
+                  <Progress
+                    value={Math.min(selectedApp.slaConsumedPercent, 100)}
+                    className={`h-2.5 ${
+                      selectedApp.slaStatus === "BREACHED"
+                        ? "[&>div]:bg-[#C62828]"
+                        : selectedApp.slaStatus === "CRITICAL"
+                        ? "[&>div]:bg-[#EA580C]"
+                        : selectedApp.slaStatus === "AT_RISK"
+                        ? "[&>div]:bg-[#D97706]"
+                        : "[&>div]:bg-[#16803c]"
+                    }`}
+                  />
+                  {selectedApp.delayReason && (
+                    <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-1 rounded">
+                      <strong>Noted Pendency Factor:</strong> {selectedApp.delayReason}
+                    </p>
+                  )}
                 </div>
-
-                <Link
-                  href={`/dps/${selectedApp.dps}`}
-                  className="bg-[#0f3443] hover:bg-[#1a4d5e] text-white text-xs font-semibold flex items-center gap-1.5 flex-shrink-0 px-3 py-2 rounded transition-colors shadow-2xs"
-                >
-                  View DPS Performance →
-                </Link>
               </div>
 
-              {/* Timeline */}
-              <div className="pt-2">
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-                  Service Delivery Audit Trail
+              {/* PROCESSING TIMELINE */}
+              <div className="bg-white border border-slate-200 rounded-md p-4 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-500" />
+                  Service Delivery Processing Timeline
                 </h4>
-                <div className="space-y-3 pl-2">
-                  {selectedApp.timeline?.map((step: any, index: number) => (
-                    <div key={index} className="flex gap-2.5 items-start">
+                <div className="space-y-3 pl-2 pt-1">
+                  {(timeline.length > 0 ? timeline : [
+                    { stageName: "Application Submitted", order: 1, status: "completed" },
+                    { stageName: "Document Verification", order: 2, status: selectedApp.slaStatus === "BREACHED" ? "breached" : "in_progress" },
+                    { stageName: "Field Land Survey / Field Inspection", order: 3, status: "upcoming" },
+                    { stageName: "Officer Review & Scrutiny", order: 4, status: "upcoming" },
+                    { stageName: "Final Statutory Order Issued", order: 5, status: "upcoming" },
+                  ]).map((step: any, index: number) => (
+                    <div key={index} className="flex items-start gap-3">
                       <span
-                        className={`w-2.5 h-2.5 rounded-full mt-0.5 flex-shrink-0 ${
-                          step.done ? "bg-[#16803c]" : step.current ? "bg-amber-500 ring-4 ring-amber-100" : "bg-slate-300"
+                        className={`w-3 h-3 rounded-full mt-0.5 flex-shrink-0 ${
+                          step.status === "completed"
+                            ? "bg-[#16803c]"
+                            : step.status === "breached"
+                            ? "bg-[#c62828] ring-4 ring-red-100"
+                            : step.status === "in_progress"
+                            ? "bg-amber-500 ring-4 ring-amber-100"
+                            : "bg-slate-300"
                         }`}
                       />
-                      <div>
-                        <p className={`font-semibold ${step.current ? "text-amber-950 font-bold" : "text-slate-800"}`}>
-                          {step.title}
+                      <div className="space-y-0.5">
+                        <p
+                          className={`text-xs ${
+                            step.status === "in_progress"
+                              ? "font-bold text-amber-950"
+                              : step.status === "breached"
+                              ? "font-bold text-red-950"
+                              : "font-semibold text-slate-700"
+                          }`}
+                        >
+                          {step.stageName}
                         </p>
-                        <p className="text-[10px] text-slate-500">{step.date}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {step.status === "completed" && "Completed within statutory timeline"}
+                          {step.status === "breached" && "🚨 Current Stage — Statutory SLA Exceeded"}
+                          {step.status === "in_progress" && "⚡ Current Stage — Active Scrutiny"}
+                          {step.status === "upcoming" && "Pending prior stage clearance"}
+                        </p>
                       </div>
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-between items-center pt-2">
+                <Link
+                  href={`/reviews?targetDps=${selectedApp.dpsCode}`}
+                  className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded flex items-center gap-1.5 shadow-2xs"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  Initiate Review on {selectedApp.dpsCode}
+                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="text-xs text-slate-600"
+                >
+                  Close Dossier
+                </Button>
               </div>
             </div>
           )}

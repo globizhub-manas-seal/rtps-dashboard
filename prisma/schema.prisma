@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  name         String
+  nodalOfficer String?
+  offices      Office[]
+  services     Service[]
+  createdAt    DateTime  @default(now())
+
+  @@map("departments")
+}
+
+model District {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  division  String?
+  offices   Office[]
+  createdAt DateTime @default(now())
+
+  @@map("districts")
+}
+
+model Office {
+  id           String        @id @default(uuid())
+  code         String        @unique
+  name         String
+  officeType   String        @default("Circle Office")
+  districtId   String
+  district     District      @relation(fields: [districtId], references: [id])
+  departmentId String
+  department   Department    @relation(fields: [departmentId], references: [id])
+  dpsOfficers  DpsOfficer[]
+  applications Application[]
+  reviewCases  ReviewCase[]
+  createdAt    DateTime      @default(now())
+
+  @@map("offices")
+}
+
+model Service {
+  id               String        @id @default(uuid())
+  serviceCode      String        @unique
+  name             String
+  statutorySlaDays Int
+  departmentId     String
+  department       Department    @relation(fields: [departmentId], references: [id])
+  applications     Application[]
+  slaRules         SlaRule[]
+  createdAt        DateTime      @default(now())
+
+  @@map("services")
+}
+
+model SlaRule {
+  id                      String   @id @default(uuid())
+  serviceId               String
+  service                 Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  slaDays                 Int      // Statutory SLA days (mirrors service.statutorySlaDays but can override)
+  warningHours            Float    @default(48)   // Remaining hours to trigger AT_RISK
+  criticalHours           Float    @default(12)   // Remaining hours to trigger CRITICAL
+  appealWindowDays        Int      @default(30)   // Appeal window after breach
+  reviewThreshold         Float    @default(80)   // SLA compliance % below which admin review triggers
+  recognitionThreshold    Float    @default(95)   // SLA compliance % above which commendation eligible
+  repeatDelayThreshold    Int      @default(3)    // Max repeat delays before flagging
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([serviceId, isActive])
+  @@map("sla_rules")
+}
+
+model DpsOfficer {
+  id           String        @id @default(uuid())
+  employeeCode String        @unique
+  name         String
+  designation  String
+  phone        String?
+  email        String?
+  officeId     String
+  office       Office        @relation(fields: [officeId], references: [id])
+  applications Application[]
+  reviewCases  ReviewCase[]
+  createdAt    DateTime      @default(now())
+
+  @@map("dps_officers")
+}
+
+model Application {
+  id                 String           @id @default(uuid())
+  rtpsRefNo          String           @unique
+  serviceId          String
+  service            Service          @relation(fields: [serviceId], references: [id])
+  officeId           String
+  office             Office           @relation(fields: [officeId], references: [id])
+  dpsId              String
+  dpsOfficer         DpsOfficer       @relation(fields: [dpsId], references: [id])
+  citizenName        String
+  citizenPhone       String?
+  submissionDate     DateTime
+  targetSlaDate      DateTime
+  completionDate     DateTime?
+  currentStatus      String           @default("SUBMITTED")
+  slaStatus          String           @default("ON_TRACK")
+  slaConsumedPercent Float            @default(0)
+  timeRemainingHours Float            @default(0)
+  daysTaken          Float?
+  currentStage       String           @default("Application Submitted")
+  delayReason        String?
+  reviewEvidences    ReviewEvidence[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@map("applications")
+}
+
+model ReviewCase {
+  id                  String           @id @default(uuid())
+  caseRef             String           @unique
+  targetType          String           @default("DPS") // DPS or Office
+  dpsId               String?
+  dpsOfficer          DpsOfficer?      @relation(fields: [dpsId], references: [id])
+  officeId            String?
+  office              Office?          @relation(fields: [officeId], references: [id])
+  status              String           @default("PENDING_ACTION") // PENDING_ACTION, IN_REVIEW, CONCLUDED
+  priority            String           @default("STANDARD") // STANDARD, HIGH, CRITICAL
+  reason              String
+  sectionCited        String?          @default("Assam RTPS Act 2012, Sec 7(1)")
+  primaryIssue        String?
+  noticeDispatchedAt  DateTime?
+  explanationText     String?
+  closingRemarks      String?
+  evidenceList        ReviewEvidence[]
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@map("review_cases")
+}
+
+model ReviewEvidence {
+  id            String      @id @default(uuid())
+  reviewCaseId  String
+  reviewCase    ReviewCase  @relation(fields: [reviewCaseId], references: [id], onDelete: Cascade)
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@map("review_evidence")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  action        String
+  actorRole     String   @default("ASCRTPS_ADMIN") // Demo simplification
+  targetEntity  String   // e.g. "SlaRule", "ReviewCase", "Application"
+  targetId      String?
+  details       String   @db.Text
+  createdAt     DateTime @default(now())
+
+  @@map("audit_logs")
+}

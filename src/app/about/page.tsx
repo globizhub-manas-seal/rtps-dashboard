@@ -56,11 +56,10 @@ export default function AboutPlatform() {
 
           <div className="flex items-center gap-3 bg-[#f7f9fb] p-3 rounded-md border border-slate-200 flex-shrink-0">
             <div className="w-12 h-12 relative flex-shrink-0">
-              <Image
-                src="/logo/assam-gov-logo.png"
+              <img
+                src={`/logo/assam-gov-logo.png?v=3`}
                 alt="Gov of Assam"
-                fill
-                className="object-contain"
+                className="object-contain w-full h-full absolute inset-0"
               />
             </div>
             <div className="w-px h-8 bg-slate-300" />
