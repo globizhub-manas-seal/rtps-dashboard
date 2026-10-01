@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateSLA } from "@/lib/sla-engine";
@@ -126,3 +127,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
