@@ -7,7 +7,8 @@ export function middleware(request: NextRequest) {
 
   // Define access rules matching MainHeader
   const routePermissions: Record<string, string[]> = {
-    "/": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN"],
+    "/": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD", "REVIEWER", "DPS", "PUBLIC"],
+    "/dashboard": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN"],
     "/sla-monitor": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD"],
     "/dps": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD", "DPS"],
     "/offices": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD"],
@@ -17,7 +18,7 @@ export function middleware(request: NextRequest) {
     "/data-integration": ["ASCRTPS_ADMIN"],
     "/settings/sla-rules": ["ASCRTPS_ADMIN"],
     "/audit": ["ASCRTPS_ADMIN"],
-    "/about": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD", "REVIEWER", "DPS"],
+    "/about": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD", "REVIEWER", "DPS", "PUBLIC"],
     "/public-performance": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD", "REVIEWER", "DPS", "PUBLIC"],
   };
 
@@ -51,6 +52,6 @@ export const config = {
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      * - logo/ (images)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|logo).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|logo|images|assam_districts.geojson).*)',
   ],
 };

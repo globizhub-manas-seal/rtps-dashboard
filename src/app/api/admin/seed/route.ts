@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { exec } from "child_process";
@@ -23,3 +24,4 @@ export async function POST() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

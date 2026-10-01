@@ -16,6 +16,7 @@ import {
   Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 
 interface AuditLog {
   id: string;
@@ -31,6 +32,8 @@ export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -58,6 +61,9 @@ export default function AuditLogsPage() {
       log.targetEntity.toLowerCase().includes(q)
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+  const paginatedLogs = filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
@@ -130,7 +136,7 @@ export default function AuditLogsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.map((log) => {
+                {paginatedLogs.map((log) => {
                   const d = new Date(log.createdAt);
                   return (
                     <TableRow key={log.id} className="border-b border-slate-100 hover:bg-[#F7F9FB]">
@@ -166,6 +172,13 @@ export default function AuditLogsPage() {
             </Table>
           </div>
         )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredLogs.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ import {
   Loader2
 } from "lucide-react";
 import { OfficeAnalyticsSummary } from "@/lib/sla-engine";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function OfficesPage() {
   const [offices, setOffices] = useState<OfficeAnalyticsSummary[]>([]);
@@ -34,6 +35,10 @@ export default function OfficesPage() {
   const [districtFilter, setDistrictFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Sorting
   const [sortField, setSortField] = useState<keyof OfficeAnalyticsSummary | null>(null);
@@ -121,6 +126,16 @@ export default function OfficesPage() {
 
     return result;
   }, [offices, searchQuery, statusFilter, districtFilter, departmentFilter, sortField, sortDirection]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, districtFilter, departmentFilter, sortField, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedOffices.length / pageSize));
+  const paginatedOffices = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedOffices.slice(start, start + pageSize);
+  }, [filteredAndSortedOffices, currentPage, pageSize]);
 
   const districts = useMemo(() => Array.from(new Set(offices.map((o) => o.district))).sort(), [offices]);
   const departments = useMemo(() => Array.from(new Set(offices.map((o) => o.department))).sort(), [offices]);
@@ -320,7 +335,7 @@ export default function OfficesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSortedOffices.map((office) => (
+                {paginatedOffices.map((office) => (
                   <TableRow key={office.officeId} className="border-b border-slate-100 hover:bg-[#F7F9FB] group">
                     <TableCell>
                       <div>
@@ -405,14 +420,13 @@ export default function OfficesPage() {
             </Table>
           </div>
         )}
-        {!loading && filteredAndSortedOffices.length > 0 && (
-          <div className="border-t border-slate-200 bg-slate-50 px-5 py-3 text-xs text-slate-500 flex justify-between items-center">
-            <span>Showing {filteredAndSortedOffices.length} offices</span>
-            <span className="font-mono text-[10px] uppercase bg-slate-200 px-2 py-0.5 rounded text-slate-600 font-bold tracking-wide">
-              Live from PostgreSQL
-            </span>
-          </div>
-        )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredAndSortedOffices.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );

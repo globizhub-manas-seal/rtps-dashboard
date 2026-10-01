@@ -17,6 +17,7 @@ import {
   Award,
   Loader2
 } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 
 interface DepartmentRecord {
   id: string;
@@ -41,6 +42,8 @@ export default function DepartmentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<keyof DepartmentRecord>("totalApplications");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     async function fetchDepartments() {
@@ -101,6 +104,16 @@ export default function DepartmentsPage() {
 
     return result;
   }, [departments, searchQuery, sortField, sortDirection]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortField, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedDepartments.length / pageSize));
+  const paginatedDepartments = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedDepartments.slice(start, start + pageSize);
+  }, [filteredAndSortedDepartments, currentPage, pageSize]);
 
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
@@ -193,7 +206,7 @@ export default function DepartmentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSortedDepartments.map((dept) => (
+                {paginatedDepartments.map((dept) => (
                   <TableRow key={dept.id} className="border-b border-slate-100 hover:bg-[#F7F9FB] group">
                     <TableCell>
                       <div>
@@ -270,6 +283,13 @@ export default function DepartmentsPage() {
             </Table>
           </div>
         )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredAndSortedDepartments.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );
