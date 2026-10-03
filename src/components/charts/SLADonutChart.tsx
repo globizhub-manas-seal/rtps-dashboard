@@ -15,7 +15,18 @@ export default function SLADonutChart({ data }: SLADonutChartProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPercent = 0;
+  let runningPercent = 0;
+  const slices = data.map((item) => {
+    const percent = total > 0 ? item.value / total : 0;
+    const offset = runningPercent;
+    runningPercent += percent;
+    return {
+      ...item,
+      percent,
+      strokeDasharray: `${percent * circumference} ${circumference}`,
+      strokeDashoffset: -offset * circumference,
+    };
+  });
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative select-none">
@@ -32,12 +43,7 @@ export default function SLADonutChart({ data }: SLADonutChartProps) {
           />
 
           {/* Slices */}
-          {data.map((item, index) => {
-            const percent = item.value / total;
-            const strokeDasharray = `${percent * circumference} ${circumference}`;
-            const strokeDashoffset = -accumulatedPercent * circumference;
-            accumulatedPercent += percent;
-
+          {slices.map((item, index) => {
             const isHovered = hoveredIndex === index;
 
             return (
@@ -49,8 +55,8 @@ export default function SLADonutChart({ data }: SLADonutChartProps) {
                 fill="none"
                 stroke={item.color}
                 strokeWidth={isHovered ? strokeWidth + 4 : strokeWidth}
-                strokeDasharray={strokeDasharray}
-                strokeDashoffset={strokeDashoffset}
+                strokeDasharray={item.strokeDasharray}
+                strokeDashoffset={item.strokeDashoffset}
                 className="transition-all duration-150 cursor-pointer"
                 onMouseEnter={() => setHoveredIndex(index)}
                 onMouseLeave={() => setHoveredIndex(null)}

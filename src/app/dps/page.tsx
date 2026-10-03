@@ -23,7 +23,8 @@ import {
   TrendingUp,
   Clock,
   Layers,
-  CheckCircle2
+  CheckCircle2,
+  Download
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Pagination } from "@/components/ui/pagination";
@@ -141,6 +142,34 @@ function DPSContent() {
   const departments = useMemo(() => ["all", ...Array.from(new Set(dpsList.map((d) => d.department)))], [dpsList]);
   const districts = useMemo(() => ["all", ...Array.from(new Set(dpsList.map((d) => d.district)))], [dpsList]);
 
+  const exportDpsCsv = () => {
+    if (!filteredList.length) return;
+    const headers = ["Employee Code", "Name", "Designation", "Office", "District", "Department", "Applications", "SLA Compliance %", "Avg TAT (days)", "Breaches", "Repeat Delays", "Performance Score", "Status"];
+    const rows = filteredList.map((d) => [
+      `"${d.employeeCode || d.dpsId}"`,
+      `"${d.name}"`,
+      `"${d.designation || ''}"`,
+      `"${d.office}"`,
+      `"${d.district}"`,
+      `"${d.department}"`,
+      d.volume,
+      d.complianceRate,
+      d.avgTat,
+      d.breaches,
+      d.repeatDelays,
+      d.performanceScore,
+      `"${d.status}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `assam_rtps_dps_directory_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="py-5 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto space-y-6">
       <PageHeader
@@ -148,6 +177,16 @@ function DPSContent() {
         subtitle="Individual officer performance index, statutory breach tracking & recurring delay detection"
       >
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportDpsCsv}
+            disabled={loading || !filteredList.length}
+            className="border-slate-300 text-xs font-semibold text-[#0f3443] flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export CSV
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -334,8 +373,10 @@ function DPSContent() {
                   <TableRow key={dps.dpsId} className="hover:bg-slate-50 transition-colors">
                     {/* DPS Officer */}
                     <TableCell>
-                      <div className="font-mono font-bold text-slate-900">{dps.employeeCode}</div>
-                      <div className="font-semibold text-[#0f3443]">{dps.name}</div>
+                      <Link href={`/dps/${dps.dpsId}`} className="group/link block">
+                        <div className="font-mono font-bold text-slate-900 group-hover/link:text-[#1464A5]">{dps.employeeCode}</div>
+                        <div className="font-semibold text-[#0f3443] group-hover/link:underline">{dps.name}</div>
+                      </Link>
                       <div className="text-[10px] text-slate-500">{dps.designation}</div>
                     </TableCell>
 
