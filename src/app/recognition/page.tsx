@@ -131,15 +131,19 @@ export default function RecognitionPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
-                  <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Commendation Ready
-                  </span>
+                <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-2 justify-between items-center text-xs">
                   <Link
-                    href={`/sla-monitor?dps=${dps.employeeCode}`}
+                    href={`/dps/${dps.dpsId}`}
                     className="text-[#1464A5] hover:underline font-semibold flex items-center gap-0.5"
                   >
-                    View Dossier <ChevronRight className="w-3 h-3" />
+                    Officer Dossier <ChevronRight className="w-3 h-3" />
+                  </Link>
+                  <Link
+                    href={`/recognition/${dps.employeeCode || dps.dpsId}/certificate`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-semibold shadow-2xs"
+                  >
+                    <Award className="w-3 h-3" /> Print Certificate
                   </Link>
                 </div>
               </div>

@@ -277,7 +277,7 @@ export default function OfficeDetailsPage() {
                   <TableCell>
                     <div>
                       <div className="font-bold text-slate-900">
-                        <Link href="/dps" className="hover:text-[#1464A5] hover:underline decoration-blue-300 underline-offset-2">
+                        <Link href={`/dps/${dps.dpsId}`} className="hover:text-[#1464A5] hover:underline decoration-blue-300 underline-offset-2">
                           {dps.name}
                         </Link>
                       </div>
@@ -326,7 +326,7 @@ export default function OfficeDetailsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-[#1464A5] opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Link href="/dps">
+                      <Link href={`/dps/${dps.dpsId}`}>
                         DPS View <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                       </Link>
                     </Button>

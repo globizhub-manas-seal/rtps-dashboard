@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rtps-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rtps_admin
+      POSTGRES_PASSWORD: rtps_secure_password_2026
+      POSTGRES_DB: rtps_sla_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rtps_admin -d rtps_sla_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rtps-dashboard-app
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://rtps_admin:rtps_secure_password_2026@postgres:5432/rtps_sla_db?schema=public"
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

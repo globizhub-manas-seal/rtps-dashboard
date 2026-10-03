@@ -9,26 +9,33 @@ import { Footer } from "@/components/layout/Footer";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLandingPage = pathname === "/" || pathname === "/landing";
+  const isDocumentPage = pathname.includes("/certificate") || pathname.includes("/notice");
 
-  if (isLandingPage) {
+  if (isLandingPage || isDocumentPage) {
     return <>{children}</>;
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F7F9FB] text-[#1F2933]">
+    <div className="min-h-screen flex flex-col bg-[#F7F9FB] text-[#1F2933] print:bg-white print:p-0">
       {/* Government Utility Bar */}
-      <TopUtilityBar />
+      <div className="print:hidden">
+        <TopUtilityBar />
+      </div>
 
       {/* Main Government Header + Navigation */}
-      <MainHeader />
+      <div className="print:hidden">
+        <MainHeader />
+      </div>
 
       {/* Page Content Area */}
-      <main id="main-content" className="flex-1">
+      <main id="main-content" className="flex-1 print:p-0 print:m-0">
         {children}
       </main>
 
       {/* Government Footer */}
-      <Footer />
+      <div className="print:hidden">
+        <Footer />
+      </div>
     </div>
   );
 }

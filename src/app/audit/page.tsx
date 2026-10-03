@@ -65,6 +65,27 @@ export default function AuditLogsPage() {
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
   const paginatedLogs = filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  const exportAuditCsv = () => {
+    if (!filteredLogs.length) return;
+    const headers = ["Timestamp", "Action", "Actor Role", "Target Entity", "Target ID", "Details"];
+    const rows = filteredLogs.map((l) => [
+      `"${new Date(l.createdAt).toISOString()}"`,
+      `"${l.action.replace(/"/g, '""')}"`,
+      `"${l.actorRole}"`,
+      `"${l.targetEntity}"`,
+      `"${l.targetId || ''}"`,
+      `"${l.details.replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `assam_rtps_audit_logs_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
       <PageHeader
@@ -83,6 +104,8 @@ export default function AuditLogsPage() {
             Refresh Logs
           </Button>
           <Button
+            onClick={exportAuditCsv}
+            disabled={!filteredLogs.length}
             variant="outline"
             size="sm"
             className="bg-white text-xs font-semibold shadow-2xs h-8"

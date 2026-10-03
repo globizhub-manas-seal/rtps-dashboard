@@ -115,6 +115,32 @@ export default function DepartmentsPage() {
     return filteredAndSortedDepartments.slice(start, start + pageSize);
   }, [filteredAndSortedDepartments, currentPage, pageSize]);
 
+  const exportDeptCsv = () => {
+    if (!departments.length) return;
+    const headers = ["Department Code", "Department Name", "Offices", "Total Applications", "SLA Compliance %", "Avg TAT (days)", "Breaches", "At Risk", "Repeat Delays", "Performance Score", "Status"];
+    const rows = departments.map((d) => [
+      `"${d.code}"`,
+      `"${d.name}"`,
+      d.totalOffices,
+      d.totalApplications,
+      d.slaCompliance,
+      d.averageTat,
+      d.breached,
+      d.atRisk,
+      d.repeatDelays,
+      d.performanceScore,
+      `"${d.status}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `assam_rtps_departments_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
       <PageHeader
@@ -122,9 +148,14 @@ export default function DepartmentsPage() {
         subtitle="Evaluate administrative efficiency, SLA adherence, and systemic bottlenecks across Government of Assam Line Departments."
       >
         <div className="flex gap-2">
-          <Button variant="outline" className="bg-white text-xs font-semibold shadow-2xs h-8">
+          <Button
+            onClick={exportDeptCsv}
+            disabled={!departments.length}
+            variant="outline"
+            className="bg-white text-xs font-semibold shadow-2xs h-8"
+          >
             <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
-            Export Report
+            Export Report (CSV)
           </Button>
         </div>
       </PageHeader>

@@ -258,7 +258,9 @@ function ReviewsContent() {
                         }`}
                       >
                         <TableCell className="font-mono font-bold text-[#0f3443]">
-                          {c.caseRef}
+                          <Link href={`/reviews/${c.id}`} className="hover:text-[#1464A5] hover:underline" onClick={(e) => e.stopPropagation()}>
+                            {c.caseRef}
+                          </Link>
                           <span className="block text-[10px] text-slate-400 font-normal">
                             {c.createdAt?.split("T")[0]}
                           </span>
@@ -410,15 +412,27 @@ function ReviewsContent() {
                     Workflow State Transition (PostgreSQL)
                   </span>
                   
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs border-slate-300 text-[#0f3443] gap-1.5"
-                    onClick={() => window.open(`/reviews/${selectedCase.id}/notice`, "_blank")}
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    Print PDF Notice
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Link href={`/reviews/${selectedCase.id}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs border-slate-300 text-[#0f3443] gap-1"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Full Dossier
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs border-slate-300 text-[#0f3443] gap-1.5"
+                      onClick={() => window.open(`/reviews/${selectedCase.id}/notice`, "_blank")}
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      Print Notice
+                    </Button>
+                  </div>
                 </div>
 
                 {selectedCase.status === "PENDING_ACTION" && (

@@ -25,13 +25,13 @@ export function GovernmentLogo({
       {/* Government of Assam Emblem (State Authority Identity) */}
       <div className="relative flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center">
         {!imgError ? (
-          <img
-            src={`/logo/assam-gov-logo.png?v=3`}
+          <Image
+            src="/logo/assam-gov-logo.png"
             alt="Government of Assam Emblem"
             width={48}
             height={48}
-            className="object-contain drop-shadow-sm"
-            style={{ width: "auto", height: "auto", maxHeight: "48px" }}
+            className="object-contain drop-shadow-sm w-auto h-auto max-h-12"
+            unoptimized
             onError={() => setImgError(true)}
           />
         ) : (

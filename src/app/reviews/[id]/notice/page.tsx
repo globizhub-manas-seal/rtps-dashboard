@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { GovernmentLogo } from "@/components/branding/GovernmentLogo";
 
 export default function NoticePrintPage() {
@@ -25,15 +28,6 @@ export default function NoticePrintPage() {
     fetchData();
   }, [id]);
 
-  useEffect(() => {
-    if (data && !loading) {
-      // Small delay to ensure images render
-      setTimeout(() => {
-        window.print();
-      }, 500);
-    }
-  }, [data, loading]);
-
   if (loading) {
     return <div className="p-10 text-center text-slate-500">Generating Document...</div>;
   }
@@ -53,7 +47,36 @@ export default function NoticePrintPage() {
   const targetCode = isDps ? targetEntity.employeeCode : targetEntity.code;
 
   return (
-    <div className="bg-white min-h-screen text-black max-w-4xl mx-auto p-12 font-serif" style={{ backgroundColor: 'white' }}>
+    <div className="bg-slate-100 min-h-screen py-8 px-4 print:p-0 print:m-0 print:bg-white">
+      {/* Non-print toolbar */}
+      <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
+        <Link href={`/reviews/${id}`}>
+          <Button variant="outline" size="sm" className="text-xs">
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Review Case
+          </Button>
+        </Link>
+        <Button
+          onClick={() => window.print()}
+          className="bg-[#0f293e] hover:bg-[#1a405d] text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+        >
+          <Printer className="w-3.5 h-3.5" /> Print Notice (PDF)
+        </Button>
+      </div>
+
+      <div className="bg-white min-h-screen text-black max-w-4xl mx-auto p-12 font-serif shadow-lg print:shadow-none print:p-0 print:m-0" style={{ backgroundColor: 'white' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+          body, html, #main-content {
+            background-color: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+        }
+      `}} />
       {/* Header */}
       <div className="flex flex-col items-center border-b-2 border-slate-800 pb-6 mb-8">
         <div className="mb-4">
@@ -110,7 +133,7 @@ export default function NoticePrintPage() {
         </p>
 
         <div className="p-4 bg-slate-50 border border-slate-200">
-          <p className="font-semibold italic">"{data.primaryIssue}"</p>
+          <p className="font-semibold italic">&ldquo;{data.primaryIssue}&rdquo;</p>
         </div>
 
         <p>
@@ -164,14 +187,14 @@ export default function NoticePrintPage() {
         <p>To verify the authenticity of this document, reference Case ID: {data.caseRef}</p>
       </div>
 
-      {/* Hide print UI elements in actual print using CSS media queries in global css, 
-          but Tailwind print: classes are excellent here */}
+      {/* Hide print UI elements in actual print using CSS media queries in global css */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { background-color: white !important; }
           .no-print { display: none !important; }
         }
       `}} />
+      </div>
     </div>
   );
 }

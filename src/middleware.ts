@@ -16,6 +16,7 @@ export function middleware(request: NextRequest) {
     "/reviews": ["ASCRTPS_ADMIN", "REVIEWER"],
     "/recognition": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN"],
     "/data-integration": ["ASCRTPS_ADMIN"],
+    "/settings": ["ASCRTPS_ADMIN"],
     "/settings/sla-rules": ["ASCRTPS_ADMIN"],
     "/audit": ["ASCRTPS_ADMIN"],
     "/about": ["ASCRTPS_ADMIN", "DEPARTMENT_ADMIN", "OFFICE_HEAD", "REVIEWER", "DPS", "PUBLIC"],

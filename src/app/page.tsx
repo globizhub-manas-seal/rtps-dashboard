@@ -61,11 +61,19 @@ export default function LandingPage() {
   };
 
   const handleContinueAsDemo = () => {
+    handleRoleDemoLogin("ASCRTPS_ADMIN");
+  };
+
+  const handleRoleDemoLogin = (role: string) => {
     setIsSubmitting(true);
-    localStorage.setItem("demo_rbac_role", "ASCRTPS_ADMIN");
-    document.cookie = "demo_rbac_role=ASCRTPS_ADMIN; path=/; max-age=86400";
+    localStorage.setItem("demo_rbac_role", role);
+    document.cookie = `demo_rbac_role=${role}; path=/; max-age=86400`;
     setTimeout(() => {
-      router.push("/dashboard");
+      if (role === "PUBLIC") {
+        router.push("/public-performance");
+      } else {
+        router.push("/dashboard");
+      }
     }, 300);
   };
 
@@ -589,6 +597,63 @@ export default function LandingPage() {
                   </span>
                 </div>
               </button>
+
+              {/* Quick Role Demo Selector */}
+              <div className="pt-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 text-center">
+                  Quick Demo By Governance Role:
+                </span>
+                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => handleRoleDemoLogin("ASCRTPS_ADMIN")}
+                    className="p-1.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 text-left truncate flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>👑</span>
+                    <span className="truncate">State Admin</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRoleDemoLogin("DEPARTMENT_ADMIN")}
+                    className="p-1.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 text-left truncate flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>🏛️</span>
+                    <span className="truncate">Dept Nodal</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRoleDemoLogin("OFFICE_HEAD")}
+                    className="p-1.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 text-left truncate flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>🏢</span>
+                    <span className="truncate">District DC</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRoleDemoLogin("REVIEWER")}
+                    className="p-1.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 text-left truncate flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>⚖️</span>
+                    <span className="truncate">Inquiry Reviewer</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRoleDemoLogin("DPS")}
+                    className="p-1.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 text-left truncate flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>👤</span>
+                    <span className="truncate">DPS Officer</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRoleDemoLogin("PUBLIC")}
+                    className="p-1.5 rounded border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 font-semibold text-emerald-800 text-left truncate flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>🌐</span>
+                    <span className="truncate">Public Portal</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
